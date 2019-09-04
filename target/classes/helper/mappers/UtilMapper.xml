@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.spring.helper.dao.UtilDAO">
+
+
+	<select id="earthQuakeDupCheck" resultType="Integer" parameterType="Integer">
+		select count(*) from earthQuakeCheck where tmSeq = #{eqNum}
+	</select>
+	
+	<insert id="insertEarthQuake" parameterType="com.spring.helper.vo.jsonVO.weather.EarthQuakeVO">
+		insert into earthQuakeCheck(eqnum, fcTp, img, lat, lon, loc, mt, rem, tmEqk, tmFc, tmSeq) values(
+		eqseq.nextVal, #{fcTp}, #{img}, #{lat}, #{lon}, #{loc}, #{mt}, #{rem}, #{tmEqk}, #{tmFc}, #{tmSeq})
+	</insert>
+	
+	<select id="selectEarthQuakePara" parameterType="Integer" resultType="com.spring.helper.vo.jsonVO.weather.EarthQuakeVO">
+		select * from (select * from earthQuakeCheck where tmSeq = #{tmSeq} order by eqnum desc) where ROWNUM = 1
+	</select>
+	
+	<select id="selectEarthQuake" resultType="com.spring.helper.vo.jsonVO.weather.EarthQuakeVO">
+		select * from (select * from earthQuakeCheck order by eqnum desc) where ROWNUM = 1
+	</select>
+	
+	<select id="getUserList" resultType="java.util.Map">
+		select membernumber, memberemail from users where enabled=1 and authority = 'ROLE_USER'
+	</select>
+	
+	<insert id="earthQuakeAlarmSend" parameterType="java.util.ArrayList">
+		<selectKey keyProperty="commentseq" resultType="int" order="BEFORE">
+    		select commentAlarmseq.nextval FROM DUAL
+  		</selectKey>
+      <!--   <foreach collection="list" item="item" index="index"  open="INSERT ALL " separator=" " close="SELECT * FROM DUAL" > 
+			into message(memberemail, messagefromid, messagesendid, messagenumber, messagecontent, messageregdate,messagealarm,messagetemp1,messagetemp2,messagetemp3)
+        	values(#{item.MEMBEREMAIL}, 'welkome', #{item.MEMBERID}, #{messageseq}+#{index}, 'Earthquake warning!', SYSDATE, 1, 0, '0', '0')
+        </foreach> -->
+         <foreach collection="list" item="item" index="index"  open="INSERT ALL " separator=" " close="SELECT * FROM DUAL" > 
+			into commentAlarm
+        	values(#{commentseq}+#{index},10000,'69',#{item.MEMBEREMAIL},'admin','AD',0 , 0, 'Earthquake warning!',1,sysdate,'N','N',0)
+        </foreach>
+    </insert>
+    
+    <!-- 쪽지 시퀀스 조정 -->
+    <!-- 쪽지 보내면서 nextval로 증가하지 않아서 쪽지 보낸 숫자만큼 강제로 변경 -->
+    <select id="msgSequenceChange" parameterType="Integer" resultType="Integer">
+    	alter sequence commentalarmseq increment by #{sqlString}
+    </select>
+    <select id="msgSequenceChange2" resultType="Integer">
+    	select commentalarmseq.nextval from dual
+    </select>
+    <select id="msgSequenceChange3" resultType="Integer">
+    	alter sequence commentalarmseq increment by 1
+    </select>
+
+
+</mapper>

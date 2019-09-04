@@ -1,0 +1,1424 @@
+package com.spring.helper.service;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.ui.Model;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import com.spring.helper.dao.BoardDAO;
+import com.spring.helper.method.method.BoardMethod;
+import com.spring.helper.method.method.QRImage;
+import com.spring.helper.vo.BoardVO.ChattingAllVO;
+import com.spring.helper.vo.BoardVO.ChattingVO;
+import com.spring.helper.vo.BoardVO.CommentAlarmVO;
+import com.spring.helper.vo.BoardVO.FromMessageVO;
+import com.spring.helper.vo.BoardVO.KnowledgeVO;
+import com.spring.helper.vo.BoardVO.MessageVO;
+import com.spring.helper.vo.BoardVO.PageVO;
+import com.spring.helper.vo.BoardVO.RealestateCommentsVO;
+import com.spring.helper.vo.BoardVO.RealestateVO;
+import com.spring.helper.vo.BoardVO.UserVO;
+import com.spring.helper.vo.BoardVO.kCommentVO;
+import com.spring.helper.vo.BoardVO.oCommentVO;
+import com.spring.helper.vo.BoardVO.onedayclassVO;
+import com.spring.helper.vo.BoardVO.reservationVO;
+
+
+@Service
+public class BoardServiceImpl implements BoardService {
+
+	@Autowired
+	BoardDAO boardDao;
+
+	// 이미지 업로드용
+	@Resource(name="chaeUploadPath")
+	String chaeDir;
+	@Resource(name="songUploadPath")
+	String songDir;
+
+	
+	private static final Logger logger = LoggerFactory.getLogger(BoardServiceImpl.class);
+
+	// 지식인게시판 리스트 출력
+	@Override
+	public void knowledgeBoardList(HttpServletRequest req, Model model) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		String knowledgeCategory = "No";
+		String search = "No";
+		if(req.getParameter("knowledgeCategory") != null ) {
+			System.out.println("전체일경우1"+req.getParameter("knowledgeCategory"));
+			model.addAttribute("knowledgeCategory","All");
+			if(!req.getParameter("knowledgeCategory").equals("All")) {
+				System.out.println("전체일경우2"+req.getParameter("knowledgeCategory"));
+				knowledgeCategory= req.getParameter("knowledgeCategory");
+				model.addAttribute("knowledgeCategory",knowledgeCategory);
+			}
+		} else {
+			model.addAttribute("knowledgeCategory","All");
+		}
+		if(req.getParameter("search") != null || req.getParameter("search")=="") {
+			search= req.getParameter("search");
+		}
+		map.put("knowledgeCategory", knowledgeCategory);
+		map.put("search", search);
+		int pageSize = 10; 		// 한 페이지당 출력할 글 갯수
+		if(req.getParameter("btn_select")!=null) {
+			pageSize = Integer.parseInt(req.getParameter("btn_select"));
+		}
+		int pageBlock = 3; 		// 한 블럭당 페이지 갯수
+		int cnt = 0;       		// 글 갯수
+		int start = 0;	   		// 현재 페이지 시작 글번호
+		int end = 0;	   		// 현재 페이지 마지막 글번호
+		int number = 0;    		// 출력용 글번호
+		String pageNum = ""; 	// 페이지 번호
+		int currentPage = 0;    // 현재 페이지
+		int pageCount = 0;      // 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+		cnt = boardDao.knowledgeGetArticleCnt(map);
+		pageNum = req.getParameter("pageNum");
+
+		if(pageNum== null) {
+			pageNum = "1"; // 첫페이지를 1로 주겠다.
+		}
+		// 글 30건 기준
+		currentPage = Integer.parseInt(pageNum); // 현재 페이지
+		System.out.println("currentPage : "+currentPage);
+
+		// 페이지 갯수 6 = (30 / 5 ) + (0)
+		pageCount = (cnt / pageSize) +(cnt % pageSize > 0 ? 1 : 0);
+
+		//현재 페이지 시작 글번호
+		// 1 = (1 - 1) * 5 + 1
+		start = (currentPage-1) * pageSize + 1;
+
+		//현재 페이지 마지막 글번호
+		//5 = 1 + 5 - 1;
+		end = start + pageSize -1;
+		if(end > cnt) end = cnt;	
+		// 출력용 글번호
+		number = cnt - (currentPage -1)* pageSize;
+
+		map.put("start", start);
+		map.put("end", end);
+		if(cnt>0) {
+			// 게시글 목록 조회
+			Map<Integer, Integer> map2 = new HashMap<Integer, Integer>();
+			ArrayList<KnowledgeVO> dtos = boardDao.knowledgeGetArticleList(map);
+			int i=0;
+			for (KnowledgeVO c : dtos) {
+				Integer knowledgeCommentListCnt = boardDao.knowledgeCommentListCnt(c.getKnowledgeNumber());
+				map2.put(i,knowledgeCommentListCnt);
+				i++;
+			}
+			req.setAttribute("kcommentCnt",map2);
+			model.addAttribute("dtos", dtos); // 큰바구니 : 게시글 목록 cf)작은 바구니 1건
+			String pageSize2 = String.valueOf(pageSize);
+			model.addAttribute("btn_select", pageSize2);
+		}
+
+		// 6단계. request나 session에 처리 결과를 저장(jsp에 전달하기 위함)
+
+		// 시작페이지 1 = (1/3) * 3 + 1
+		startPage = (currentPage / pageBlock) * pageBlock + 1;
+		if(currentPage % pageBlock == 0) startPage -= pageBlock;
+		// 마지막 페이지 3 = 1 + 3 - 1
+		endPage = startPage + pageBlock-1;
+		if(endPage > pageCount) endPage = pageCount;
+		req.setAttribute("cnt", cnt); // 글갯수
+		req.setAttribute("number", number); // 출력용 글번호
+		req.setAttribute("pageNum", pageNum); // 페이지 번호
+		if(cnt >0) {
+			req.setAttribute("startPage", startPage); // 시작 페이지
+			req.setAttribute("endPage", endPage); // 마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); // 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); // 페이지 갯수
+			req.setAttribute("currentPage", currentPage); // 현재페이지
+		}
+
+	}
+	//질문등록 처리
+	@Override
+	public void knowledgeInsertArticle(HttpServletRequest req, Model model) {
+		String knowledgeSubject = req.getParameter("knowledgeSubject");
+		String knowledgeContent = req.getParameter("knowledgeContent");
+		String knowledgeOpenCheck = req.getParameter("knowledgeOpenCheck");
+		String knowledgeCategory = req.getParameter("knowledgeCategory");
+		int knowledgeReward = Integer.parseInt(req.getParameter("addReward"));
+		KnowledgeVO Knowledge = new KnowledgeVO();
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		Knowledge.setMemberEmail(userVO.getMemberEmail());
+		Knowledge.setMemberId(userVO.getMemberId());
+		Knowledge.setKnowledgeReward(knowledgeReward);
+		Knowledge.setKnowledgeSubject(knowledgeSubject);
+		Knowledge.setKnowledgeContent(knowledgeContent);
+		Knowledge.setKnowledgeOpenCheck(knowledgeOpenCheck);
+		Knowledge.setKnowledgeCategory(knowledgeCategory);
+		int insertcnt = boardDao.knowledgeInsertArticle(Knowledge);
+		model.addAttribute("insertcnt",insertcnt);
+		userVO.setMemberPoint((userVO.getMemberPoint()-knowledgeReward));
+		req.getSession().setAttribute("userVO", userVO);
+	}
+	// 질문수정 폼 이동
+	@Override
+	public void knowledgeModifyForm(HttpServletRequest req, Model model) {
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		String pageNum = req.getParameter("pageNum"); 
+		String btn_select = req.getParameter("btn_select");
+		KnowledgeVO Knowledge = boardDao.knowledgeModifyForm(knowledgeNumber);
+		model.addAttribute("Knowledge",Knowledge);
+		model.addAttribute("pageNum",pageNum);
+		model.addAttribute("btn_select",btn_select);
+	}
+	// 질문수정 처리
+	@Override
+	public void knowledgeModifyPro(HttpServletRequest req, Model model) {
+		String pageNum = req.getParameter("pageNum"); 
+		String btn_select = req.getParameter("btn_select");
+		String knowledgeSubject = req.getParameter("knowledgeSubject");
+		String knowledgeContent = req.getParameter("knowledgeContent");
+		String knowledgeOpenCheck = req.getParameter("knowledgeOpenCheck");
+		String knowledgeCategory = req.getParameter("knowledgeCategory");
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		int knowledgeReward = Integer.parseInt(req.getParameter("addReward"));
+		KnowledgeVO Knowledge = new KnowledgeVO();
+		Knowledge.setKnowledgeNumber(knowledgeNumber);
+		Knowledge.setKnowledgeReward(knowledgeReward);
+		Knowledge.setKnowledgeSubject(knowledgeSubject);
+		Knowledge.setKnowledgeContent(knowledgeContent);
+		Knowledge.setKnowledgeOpenCheck(knowledgeOpenCheck);
+		Knowledge.setKnowledgeCategory(knowledgeCategory);
+		int Knowledgeupdatecnt = boardDao.knowledgeModifyPro(Knowledge);
+		model.addAttribute("knowledgeNumber",knowledgeNumber);
+		model.addAttribute("Knowledgeupdatecnt",Knowledgeupdatecnt);
+		model.addAttribute("pageNum",pageNum);
+		model.addAttribute("btn_select",btn_select);
+	}
+	// 질문삭제 처리
+	@Override
+	public void knowledgeDeleteForm(HttpServletRequest req, Model model) {
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		System.out.println(knowledgeNumber);
+		String pageNum = req.getParameter("pageNum"); 
+		String btn_select = req.getParameter("btn_select");
+		int knowledgedeletecnt = boardDao.knowledgeDeleteForm(knowledgeNumber);
+		model.addAttribute("knowledgedeletecnt",knowledgedeletecnt);
+		model.addAttribute("pageNum",pageNum);
+		model.addAttribute("btn_select",btn_select);
+	}
+	// 지식인게시판 게시글 상세페이지 출력
+	@Override
+	public void knowledgeDetailForm(HttpServletRequest req, Model model) {
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		KnowledgeVO Knowledge = new KnowledgeVO();
+		Knowledge = boardDao.knowledgeGetArticle(knowledgeNumber);
+		model.addAttribute("dtos",Knowledge);
+		int emailcheck = 0;
+		req.setAttribute("emailcheck", emailcheck);
+	}
+	// 답변 등록 처리
+	@Override
+	public void knowledgeCommentPro(HttpServletRequest req, Model model) {
+		String kCommentContent = req.getParameter("kCommentContent");
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		String kCommentTemp1 = req.getParameter("kCommentTemp1");
+		String knowledgememberId = req.getParameter("knowledgememberId");
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		String memberEmail = userVO.getMemberEmail();
+		String memberId = userVO.getMemberId();
+		String memberCountry = userVO.getMemberCountry();
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("kCommentContent", kCommentContent);
+		map.put("knowledgememberId", knowledgememberId);
+		map.put("knowledgeNumber", knowledgeNumber);
+		map.put("kCommentTemp1", kCommentTemp1);
+		map.put("memberId", memberId);
+		map.put("memberNumber", userVO.getMemberNumber());
+		map.put("memberEmail", memberEmail);
+		map.put("memberId", memberId);
+		map.put("memberCountry", memberCountry);
+		int kCommentCnt = boardDao.knowledgeCommentPro(map);
+		req.setAttribute("knowledgeNumber", knowledgeNumber);
+		req.setAttribute("kCommentCnt", kCommentCnt);
+	}
+	// 답변 수정 처리
+	@Override
+	public void kCommentModifyUpdate(HttpServletRequest req, Model model) {
+		String kCommentContent = req.getParameter("kCommentContent");
+		String kCommentTemp1 = req.getParameter("kCommentTemp2");
+		int kCommentNumber = Integer.parseInt(req.getParameter("kCommentNumber"));
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("kCommentContent", kCommentContent);
+		map.put("kCommentTemp1", kCommentTemp1);
+		map.put("kCommentNumber", kCommentNumber);
+		int kCommentModifycnt = boardDao.kCommentModifyUpdate(map);
+		req.setAttribute("knowledgeNumber", knowledgeNumber);
+		req.setAttribute("kCommentNumber", kCommentNumber);
+		req.setAttribute("kCommentModifycnt", kCommentModifycnt);
+	}
+	// 답변 삭제 처리
+	@Override
+	public void kCommentdelete(HttpServletRequest req, Model model) {
+		int kCommentNumber = Integer.parseInt(req.getParameter("kCommentNumber"));
+		System.out.println(kCommentNumber);
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		System.out.println(knowledgeNumber);
+		int kCommentdeletecnt =  boardDao.kCommentdelete(kCommentNumber);
+		model.addAttribute("knowledgeNumber",knowledgeNumber);
+		model.addAttribute("kCommentdeletecnt",kCommentdeletecnt);
+	}
+	// 답변 등록 리스트 출력
+	@Override
+	public void knowledgeCommentList(HttpServletRequest req, Model model) {
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		int cnt = boardDao.knowledgeCommentListCnt(knowledgeNumber);
+		int emailcheck = 0;
+		if(cnt > 0) {
+			ArrayList<kCommentVO> kCommentVO = boardDao.knowledgeCommentList(knowledgeNumber);
+			req.setAttribute("kCommentVO", kCommentVO);
+			if(req.getSession().getAttribute("userVO") != null) {
+				UserVO user = (UserVO)req.getSession().getAttribute("userVO");
+				for(kCommentVO cc : kCommentVO) {
+					if(cc.getMemberEmail().equals(user.getMemberEmail())){
+						emailcheck = 1;
+					}
+				}
+			}
+		}
+		req.setAttribute("emailcheck", emailcheck);
+	}
+	// 채택 처리
+	@Override
+	public void knowledgeSelectComent(HttpServletRequest req, Model model) {
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		String memberEmail = userVO.getMemberEmail();
+		String kCommentmemberId = req.getParameter("kCommentmemberId");
+		int knowledgeReward = Integer.parseInt(req.getParameter("knowledgeReward"));
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("kCommentmemberId", kCommentmemberId);
+		map.put("knowledgeReward", knowledgeReward);
+		map.put("memberEmail", memberEmail);
+		map.put("knowledgeNumber", knowledgeNumber);
+		int knowledgeSelectComent = boardDao.knowledgeSelectComent(map);
+		model.addAttribute("knowledgeSelectComent",knowledgeSelectComent);
+	}
+	// 조회수 증가
+	@Override
+	public void knowledgeAddReadCnt(HttpServletRequest req, Model model) {
+		int knowledgeNumber = Integer.parseInt(req.getParameter("knowledgeNumber"));
+		boardDao.knowledgeAddReadCnt(knowledgeNumber);
+
+	}
+
+	@Autowired
+	BoardMethod boardMethod;
+
+	//부동산 게시판 글 목록 보기
+	@Override
+	public void realestateGetArticleList(HttpServletRequest req, Model model) {
+		//파라미터(검색조건) VO에 담기
+		RealestateVO rVO = boardMethod.getParameterRealestateVO(req); 
+		//검색 조건에 대한 게시글 갯수 구하기
+		Integer cnt = boardDao.realestateGetArticleCnt(rVO);
+		//검색 조건에 대한 게시글 갯수로 페이지 구하기
+		int pageNum = 1;
+		if(req.getParameter("pageNum")!=null) {
+			int temp = Integer.parseInt(req.getParameter("pageNum"));
+			if(temp>1) pageNum = temp;
+		}
+		PageVO pVO = boardMethod.getRealestatePageVO(pageNum,cnt);
+		List<RealestateVO> list = new ArrayList<RealestateVO>();
+		pVO.setPageNum(String.valueOf(pageNum));
+		rVO.setRealestateStart(pVO.getStartNumber());
+		rVO.setRealestateEnd(pVO.getEndNumber());
+		//검색 조건에 따른 리스트 구해오기
+		list = boardDao.realestateGetArticleList(rVO);
+		logger.info(pVO.toString());
+		//페이지 변경시 사용 할 URL 주소 만들기
+		String url = boardMethod.makeURLbyParameter(req);
+		model.addAttribute("linkUrl",url);
+		model.addAttribute("list", list);
+		model.addAttribute("pVO", pVO);
+	}
+
+	//부동산 게시판 글 쓰기
+	@Override
+	public Integer realestateInsertArticle(MultipartHttpServletRequest req, Model model) throws Exception{
+		logger.info(req.getParameter("realestateLocation"));
+		RealestateVO rVO = boardMethod.getFullRealestateVO(req); 
+		logger.info(rVO.toString());
+		return boardDao.realestateInsertArticle(rVO);
+	}
+
+	//이미지 관련
+
+
+
+	//부동산 게시판 글 상세 페이지 
+	@Override
+	public void realestateGetArticle(HttpServletRequest req, Model model) {
+		if(req.getParameter("realestateNumber") != null) {
+			int realestateNumber = Integer.parseInt(req.getParameter("realestateNumber"));
+			RealestateVO rVO = boardDao.realestateGetArticle(realestateNumber);
+			if(rVO != null) {
+				logger.info(rVO.toString());
+				model.addAttribute("rVO",rVO);
+			}else {
+				logger.info("에러이니 페이지 되돌리기 기능넣기!!!");
+			}
+		}else {
+			logger.info("에러이니 페이지 되돌리기 기능넣기!!!");
+		}
+	}
+
+	// 부동산 게시판 글 수정
+	public Integer realestateModifyUpdate(MultipartHttpServletRequest req, Model model) throws Exception{
+		RealestateVO rVO = boardMethod.getFullRealestateVO(req); 
+		return boardDao.realestateModifyUpdate(rVO);
+	}
+
+	//부동산 게시판 글 삭제
+	public Integer realestateDeleteArticle(HttpServletRequest req) {
+		Integer deleteResult = 0;
+		if(req.getParameter("realestateNumber") != null) {
+			int realestateNumber = Integer.parseInt(req.getParameter("realestateNumber"));
+			deleteResult = boardDao.realestateDeleteArticle(realestateNumber);
+		}return deleteResult;
+	}
+
+	// 부동산 게시판 댓글 가져오기
+	@Override
+	public List<RealestateCommentsVO> realestateGetCommentsList(HttpServletRequest req, Model model){
+		int realestateNumber = Integer.parseInt(req.getParameter("realestateNumber"));
+		return boardDao.realestateGetCommentsList(realestateNumber);
+	};
+
+	//부동산 게시판 댓글 달기
+	@Override
+	public Integer realestateCommentPro(RealestateCommentsVO cVO, HttpServletRequest req) {
+		if(req.getSession().getAttribute("userVO")==null) { 
+			return 0;	// 회원ID 가 없는 상태로 요청 받으면 0 리턴
+		}else {
+			UserVO uVO = (UserVO)req.getSession().getAttribute("userVO"); // 있으면 자료 입력 시도
+			logger.info(uVO.toString());
+			cVO.setMemberId(uVO.getMemberId());
+			cVO.setMemberEmail(uVO.getMemberEmail());
+			cVO.setMemberNumber(uVO.getMemberNumber());
+			cVO.setMemberCountry(uVO.getMemberCountry());
+			return boardDao.realestateCommentPro(cVO);
+		}
+	}
+
+	//부동산 게시판 댓글 삭제
+	@Override
+	public Integer realestateCommentsDelete(int rCommentNumber) { //전달 받은 댓글 번호 삭제
+		return boardDao.realestateCommentsDelete(rCommentNumber);
+	}
+
+	//부동산 게시판 더미 데이터생성기 - 현재 버튼 주석 처리
+	@Override
+	public void realestateDummyMaker(HttpServletRequest req, Model model) {
+		RealestateVO rVO = boardMethod.realestateDummyDataMaker(); 
+		logger.info(rVO.toString());
+		Integer realestateWriteProResult = boardDao.realestateInsertArticle(rVO);
+		logger.info(realestateWriteProResult.toString());
+	}
+
+	// 댓글 알람 게시판 페이징
+	@Override
+	public void commentAlarmBoard(HttpServletRequest req, Model model) {
+		// 페이징
+		int pageSize = 20; 		// 한페이지당 출력할 글 갯수
+		int pageBlock = 5; 		// 한 블럭당 페이지 갯수
+
+		int cnt = 0; 			// 글갯수
+		int start = 0; 			// 현재 페이지 시작 글번호
+		int end = 0; 			// 현재 페이지 마지막 글번호
+		int number = 0; 		// 출력용 글번호
+		String pageNum = "";	// 페이지 번호
+		int currentPage=0;		// 현재페이지
+
+		int pageCount = 0;		// 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO"); 
+		String memEmail = userVO.getMemberEmail();
+		logger.info("memEmail : " + memEmail);
+		//5단계 글갯수 구하기
+		cnt = boardDao.commentReadCnt(memEmail);
+		System.out.println("글 갯수cnt ===============: "+cnt);
+
+		pageNum = req.getParameter("pageNum");
+
+		if(pageNum == null) {
+			pageNum = "1"; //첫페이지를 1페이지로 지정
+		}
+
+		// 글 30건 기준
+		currentPage = Integer.parseInt(pageNum);//현재 페이지 : 1
+		System.out.println("쪽수 구하기currentPage : "+currentPage);
+
+		// 페이지 갯수 6 = (30 / 5)+(0)
+		pageCount = (cnt / pageSize) + (cnt % pageSize > 0 ? 1 : 0); //페이지 갯수 + 나머지가 있으면 1
+
+		// 현재 페이지 시작 글번호1 (페이지별)
+		// 1 = (1-1) * 5 + 1
+		start = (currentPage -1) * pageSize +1;
+
+		// 현재 페이지 마지막 글번호(페이지별)
+		// 5 = 1 + 5 -1;
+		end = start + pageSize - 1 ;
+
+		System.out.println("start : " + start);
+		System.out.println("end : " + end);
+		System.out.println("cnt : " + cnt);
+
+		if(end > cnt) end = cnt;
+
+		// 출력용 글번호
+		// 30 = 30 -(1 - 1) * 5
+		number = cnt - (currentPage -1) * pageSize;  // 출력용 글번호
+		System.out.println("number : " + number);
+		System.out.println("pageSize : " + pageSize);
+
+		if(cnt > 0) {
+
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("start", start);
+			map.put("end", end);
+			map.put("userVO", userVO);
+
+			//5-2. 게시글 목록 조회
+			// 큰바구니 : 게시글 목록 cf)작은 바구니 : 게시글 1건
+
+			List<CommentAlarmVO> cos = boardDao.commentReadList(map);
+			req.setAttribute("cos", cos);
+
+		}
+		//6단계. request나 session에 처리 겨로가를 저장(jsp에 전달하기 위함)
+
+		// 시작페이지
+		//1=(1 / 3) * 3 + 1;
+		startPage = (currentPage / pageBlock) * pageBlock + 1;
+		if(currentPage % pageBlock ==0) startPage -= pageBlock;
+		System.out.println("startPage : " + startPage);			
+
+
+		// 마지막 페이지
+		// 3 = 1 + 3 - 1;
+		endPage = startPage + pageBlock - 1;
+		if(endPage > pageCount) endPage=pageCount;
+		System.out.println("endPage : " + endPage);
+		System.out.println("=======================");
+
+		req.setAttribute("cnt", cnt);// 글갯수
+		req.setAttribute("number", number); // 출력용 글번호
+		req.setAttribute("pageNum", pageNum); // 페이지 번호
+
+		if(cnt > 0) {
+			req.setAttribute("startPage", startPage); // 시작 페이지
+			req.setAttribute("endPage", endPage); // 마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); // 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); // 페이지 갯수
+			req.setAttribute("currentPage", currentPage); // 현재페이지
+		}
+		System.out.println("1");
+		System.out.println("pageNum : "+pageNum);
+		System.out.println("글목록");
+	}
+
+
+	//쪽지 알람 게시판
+	@Override
+	public void messageAlarmBoard(HttpServletRequest req, Model model) {
+		// 페이징
+		int pageSize = 20; 		// 한페이지당 출력할 글 갯수
+		int pageBlock = 5; 		// 한 블럭당 페이지 갯수
+
+		int cnt = 0; 			// 글갯수
+		int start = 0; 			// 현재 페이지 시작 글번호
+		int end = 0; 			// 현재 페이지 마지막 글번호
+		int number = 0; 		// 출력용 글번호
+		String pageNum = "";	// 페이지 번호
+		int currentPage=0;		// 현재페이지
+
+		int pageCount = 0;		// 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO"); 
+		String memberId = userVO.getMemberId();
+		logger.info("memberId : " + memberId);
+		//5단계 글갯수 구하기
+		cnt = boardDao.messageReadCnt(memberId);
+		System.out.println("글 갯수cnt ===============: "+cnt);
+
+		pageNum = req.getParameter("pageNum");
+
+		if(pageNum == null) {
+			pageNum = "1"; //첫페이지를 1페이지로 지정
+		}
+
+		// 글 30건 기준
+		currentPage = Integer.parseInt(pageNum);//현재 페이지 : 1
+		System.out.println("쪽수 구하기currentPage : "+currentPage);
+
+		// 페이지 갯수 6 = (30 / 5)+(0)
+		pageCount = (cnt / pageSize) + (cnt % pageSize > 0 ? 1 : 0); //페이지 갯수 + 나머지가 있으면 1
+
+		// 현재 페이지 시작 글번호1 (페이지별)
+		// 1 = (1-1) * 5 + 1
+		start = (currentPage -1) * pageSize +1;
+
+		// 현재 페이지 마지막 글번호(페이지별)
+		// 5 = 1 + 5 -1;
+		end = start + pageSize - 1 ;
+
+		System.out.println("start : " + start);
+		System.out.println("end : " + end);
+		System.out.println("cnt : " + cnt);
+
+		if(end > cnt) end = cnt;
+
+		// 출력용 글번호
+		// 30 = 30 -(1 - 1) * 5
+		number = cnt - (currentPage -1) * pageSize;  // 출력용 글번호
+		System.out.println("number : " + number);
+		System.out.println("pageSize : " + pageSize);
+
+		if(cnt > 0) {
+
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("start", start);
+			map.put("end", end);
+			map.put("userVO", userVO);
+
+			//5-2. 게시글 목록 조회
+			List<MessageVO> mos =boardDao.messageReadList(map);
+
+			// 큰바구니 : 게시글 목록 cf)작은 바구니 : 게시글 1건
+			req.setAttribute("mos", mos);
+
+		}
+		//6단계. request나 session에 처리 겨로가를 저장(jsp에 전달하기 위함)
+
+		// 시작페이지
+		//1=(1 / 3) * 3 + 1;
+		startPage = (currentPage / pageBlock) * pageBlock + 1;
+		if(currentPage % pageBlock ==0) startPage -= pageBlock;
+		System.out.println("startPage : " + startPage);			
+
+
+		// 마지막 페이지
+		// 3 = 1 + 3 - 1;
+		endPage = startPage + pageBlock - 1;
+		if(endPage > pageCount) endPage=pageCount;
+		System.out.println("endPage : " + endPage);
+		System.out.println("=======================");
+
+		req.setAttribute("cnt", cnt);// 글갯수
+		req.setAttribute("number", number); // 출력용 글번호
+		req.setAttribute("pageNum", pageNum); // 페이지 번호
+
+		if(cnt > 0) {
+			req.setAttribute("startPage", startPage); // 시작 페이지
+			req.setAttribute("endPage", endPage); // 마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); // 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); // 페이지 갯수
+			req.setAttribute("currentPage", currentPage); // 현재페이지
+		}
+		System.out.println("1");
+		System.out.println("pageNum : "+pageNum);
+		System.out.println("글목록");
+	}
+
+
+	// 댓글 알람삭제
+	@Override
+	public void commentAlarmDelete(HttpServletRequest req, Model model) {
+		// 3단계. 화면에서 갑 가져오기
+		int pageNum = Integer.parseInt(req.getParameter("pageNum"));
+		int commentnumber = Integer.parseInt(req.getParameter("commentnumber"));
+		System.out.println("commentnumber : " + commentnumber);
+
+		int deleteCnt = 0;
+
+		if(commentnumber != 0) {
+			commentnumber = boardDao.commentDelete(commentnumber);
+			deleteCnt=commentnumber;
+		}
+		System.out.println("deleteCnt : " + deleteCnt);
+		model.addAttribute("deleteCnt", deleteCnt);
+		model.addAttribute("pageNum", pageNum);
+	}
+	// 받은 쪽지 알람 삭제
+	@Override
+	public void messageDelete(HttpServletRequest req, Model model) {
+
+		int pageNum = Integer.parseInt(req.getParameter("pageNum"));
+		int messageNumber = Integer.parseInt(req.getParameter("messageNumber"));
+		logger.info("messagenumber : "+messageNumber);
+		
+		int deleteCnt = 0;
+
+		messageNumber = boardDao.messageDelete(messageNumber);
+		deleteCnt=messageNumber;
+
+		model.addAttribute("deleteCnt", deleteCnt);
+		model.addAttribute("pageNum", pageNum);
+
+	}
+
+	// 보낸 쪽지  삭제
+	@Override
+	public void fMessageDelete(HttpServletRequest req, Model model) {
+
+		int pageNum = Integer.parseInt(req.getParameter("pageNum"));
+		int fMessageNumber = Integer.parseInt(req.getParameter("fMessageNumber"));
+		logger.info("fMessageNumber : " + fMessageNumber);
+
+		int deleteCnt = 0;
+
+		fMessageNumber = boardDao.fMessageDelete(fMessageNumber);
+		deleteCnt=fMessageNumber;
+
+		model.addAttribute("deleteCnt", deleteCnt);
+		model.addAttribute("pageNum", pageNum);
+
+	}
+
+	//ajax 댓글 알림
+	@Override
+	public Integer alarmServiceCnt(HttpServletRequest req) {
+		Integer alarmCnt=0;
+
+		if(req.getSession().getAttribute("userVO") == null) {
+			return 0;
+		}
+
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO"); 
+
+		String memEmail = userVO.getMemberEmail();
+		logger.info("memEmail : " + memEmail);
+
+		String memberId = userVO.getMemberId();
+		logger.info("memberId : " + memberId);
+
+		//5단계 글갯수 구하기
+		if(memEmail != null) {
+			alarmCnt = boardDao.commentAlarmCnt(memEmail)+ boardDao.messageCnt(memberId);
+		}
+		logger.info("합산한 alarmCnt : " + alarmCnt);
+		return alarmCnt;
+
+	}
+	//쪽지 보내기
+	@Override
+	public Integer sendMessage(HttpServletRequest req, Model model) {
+		
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		String memEmail = userVO.getMemberEmail();
+		logger.info("memEmail : " + memEmail);
+		String messageFromId = userVO.getMemberId();
+		
+		String messageSendIdF = req.getParameter("messageSendIdF");
+		logger.info("messageSendIdF서비스 : " + messageSendIdF);
+		
+		int selectCnt = 0;
+		
+		if(messageSendIdF==null) {
+			messageSendIdF=req.getParameter("hiddenId");
+			logger.info("hiddenId : " + messageSendIdF);
+		}
+		
+		String messageContent = req.getParameter("messageContent1");
+		logger.info("messageContent1 : " + messageContent);		
+		
+		if(messageContent==null) {
+			messageContent = req.getParameter("messageContent2");
+			logger.info("messageContent2 : " + messageContent);
+		}
+		logger.info("messageContent : " + messageContent);
+
+		int sendCnt = 0;
+		selectCnt = boardDao.idCheck(messageSendIdF);// 보내는 아이디가 존재하는지 확인
+		logger.info("selectCnt = " + selectCnt);
+		if(selectCnt==1) {
+			if(memEmail != null && messageFromId != null) {
+				Map<String, Object> map = new HashMap<String, Object>();
+				map.put("userVO", userVO);
+				map.put("messageSendId", messageSendIdF);
+				map.put("messageContent", messageContent);
+	
+				sendCnt = boardDao.sendMessage(map);
+				logger.info("sendCntqweqe = " + sendCnt);
+				req.setAttribute("sendCnt", sendCnt);
+			}
+		}
+		req.setAttribute("sendCnt", sendCnt);
+		return sendCnt;
+	}
+
+	// 보낸쪽지 확인
+	@Override
+	public void messageSendList(HttpServletRequest req, Model model) {
+		// 페이징
+		int pageSize = 20; 		// 한페이지당 출력할 글 갯수
+		int pageBlock = 5; 		// 한 블럭당 페이지 갯수
+
+		int cnt = 0; 			// 글갯수
+		int start = 0; 			// 현재 페이지 시작 글번호
+		int end = 0; 			// 현재 페이지 마지막 글번호
+		int number = 0; 		// 출력용 글번호
+		String pageNum = "";	// 페이지 번호
+		int currentPage=0;		// 현재페이지
+
+		int pageCount = 0;		// 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO"); 
+		String memberId = userVO.getMemberId();
+		logger.info("memberId : " + memberId);
+		//5단계 글갯수 구하기
+		cnt = boardDao.messageSendListCnt(memberId);
+		System.out.println("글 갯수cnt ===============: "+cnt);
+
+		pageNum = req.getParameter("pageNum");
+
+		if(pageNum == null) {
+			pageNum = "1"; //첫페이지를 1페이지로 지정
+		}
+
+		// 글 30건 기준
+		currentPage = Integer.parseInt(pageNum);//현재 페이지 : 1
+		System.out.println("쪽수 구하기currentPage : "+currentPage);
+
+		// 페이지 갯수 6 = (30 / 5)+(0)
+		pageCount = (cnt / pageSize) + (cnt % pageSize > 0 ? 1 : 0); //페이지 갯수 + 나머지가 있으면 1
+
+		// 현재 페이지 시작 글번호1 (페이지별)
+		// 1 = (1-1) * 5 + 1
+		start = (currentPage -1) * pageSize +1;
+
+		// 현재 페이지 마지막 글번호(페이지별)
+		// 5 = 1 + 5 -1;
+		end = start + pageSize - 1 ;
+
+		System.out.println("start : " + start);
+		System.out.println("end : " + end);
+		System.out.println("cnt : " + cnt);
+
+		if(end > cnt) end = cnt;
+
+		// 출력용 글번호
+		// 30 = 30 -(1 - 1) * 5
+		number = cnt - (currentPage -1) * pageSize;  // 출력용 글번호
+		System.out.println("number : " + number);
+		System.out.println("pageSize : " + pageSize);
+
+		if(cnt > 0) {
+
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("start", start);
+			map.put("end", end);
+			map.put("userVO", userVO);
+
+			//5-2. 게시글 목록 조회
+			List<FromMessageVO> sml =boardDao.messageSendList(map);
+
+			// 큰바구니 : 게시글 목록 cf)작은 바구니 : 게시글 1건
+			req.setAttribute("sml", sml);
+
+		}
+		//6단계. request나 session에 처리 겨로가를 저장(jsp에 전달하기 위함)
+
+		// 시작페이지
+		//1=(1 / 3) * 3 + 1;
+		startPage = (currentPage / pageBlock) * pageBlock + 1;
+		if(currentPage % pageBlock ==0) startPage -= pageBlock;
+		System.out.println("startPage : " + startPage);			
+
+
+		// 마지막 페이지
+		// 3 = 1 + 3 - 1;
+		endPage = startPage + pageBlock - 1;
+		if(endPage > pageCount) endPage=pageCount;
+		System.out.println("endPage : " + endPage);
+		System.out.println("=======================");
+
+		req.setAttribute("cnt", cnt);// 글갯수
+		req.setAttribute("number", number); // 출력용 글번호
+		req.setAttribute("pageNum", pageNum); // 페이지 번호
+
+		if(cnt > 0) {
+			req.setAttribute("startPage", startPage); // 시작 페이지
+			req.setAttribute("endPage", endPage); // 마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); // 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); // 페이지 갯수
+			req.setAttribute("currentPage", currentPage); // 현재페이지
+		}
+		System.out.println("1");
+		System.out.println("pageNum : "+pageNum);
+		System.out.println("글목록");
+
+	}
+
+
+	// 채팅 글뿌리기
+	@Override
+	public List<ChattingVO> chatting(HttpServletRequest req, Model model) {
+		UserVO uservo = (UserVO)req.getSession().getAttribute("userVO");
+		String chattingContry = uservo.getMemberCountry();
+
+		List<ChattingVO> chat = boardDao.chatting(chattingContry);
+
+		return chat;
+
+	}
+	// 채팅 글쓰기
+	@Override
+	public Integer chattingWrite(ChattingVO cVO, HttpServletRequest req) {
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		String chattingMemberId = userVO.getMemberId();
+		String chattingContry = userVO.getMemberCountry();
+		logger.info("chattingMemberId : " + chattingMemberId);
+
+		//vo.setChattingRegdate(new Timestamp(System.currentTimeMillis()));
+		cVO.setChattingMemberId(chattingMemberId);
+		cVO.setChattingContry(chattingContry);
+		int chattingWrite =boardDao.chattingWrite(cVO);
+
+		return chattingWrite;
+	}
+
+
+	// 세계 채팅 글뿌리기
+	@Override
+	public List<ChattingAllVO> chattingAll(HttpServletRequest req, Model model) {
+		
+		UserVO uservo = (UserVO)req.getSession().getAttribute("userVO");
+		String chattingAllContry = uservo.getMemberCountry();
+		logger.info("세계채팅chattingAllContry : " + chattingAllContry);
+		List<ChattingAllVO> chatAll = boardDao.chattingAll(chattingAllContry);
+		logger.info("eeeeeeeeeeeeeeeeeee : ");
+		return chatAll;
+
+	}
+	// 세계 채팅 글쓰기
+	@Override
+	public Integer chattingWriteAll(ChattingAllVO cVO, HttpServletRequest req) {
+
+		UserVO userVO = (UserVO)req.getSession().getAttribute("userVO");
+		String chattingAllMemberId = userVO.getMemberId();
+		String chattingAllContry = userVO.getMemberCountry();
+		logger.info("chattingAllMemberId : " + chattingAllMemberId);
+		
+		cVO.setchattingAllMemberId(chattingAllMemberId);
+		cVO.setChattingAllContry(chattingAllContry);
+		int chattingAllWrite =boardDao.chattingWriteAll(cVO);
+
+		return chattingAllWrite;
+	}
+
+
+	// 게시글 목록
+	@Override
+	public void onedayclassBoardList(HttpServletRequest req, Model model) {
+		System.out.println("서비스시작~");
+		// 3단계. 화면으로 부터 입력받은 값을 받아온다.
+		int pageSize = 9;		// 한페이지당 출력할 글 갯수
+		int pageBlock = 3;		// 한블록당 페이지 갯수
+		int cnt = 0;			// 글 갯수
+		int start = 0;			// 현재 페이지 시작 글번호
+		int end = 0;			// 현재 페이지 마지막 글번호
+		int number = 0;			// 출력용 글번호
+		String pageNum = ""; 	// 페이지 번호
+		int currentPage = 0; 	// 현재페이지
+		int pageCount = 0;		// 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+		cnt = boardDao.onedayclassGetArticleCnt();
+		System.out.println("cnt:" + cnt);
+		if(req.getParameter("pageNum") != null) {
+			pageNum = req.getParameter("pageNum").toString();
+		}else {
+			pageNum = "1"; // 첫페이지를 1페이지로 지정
+		}
+		// 글 48건 기준
+		currentPage = Integer.parseInt(pageNum); // 현재 페이지 : 1
+		System.out.println("currentPage : " + currentPage);
+		// 페이지 갯수
+		pageCount = (cnt / pageSize) + (cnt % pageSize > 0 ? 1 : 0);  // 페이지 갯수 + 나머지 있으면 1
+		// 현재 페이지 시작번호(페이지별)
+		// 1 = (1 - 1) * 5 + 1
+		start = (currentPage - 1) * pageSize + 1;
+		// 현재 페이지 마지막 글번호(페이지별)
+		// 5 = 1 + 5 -1;
+		end = start + pageSize - 1;
+		System.out.println("start : " + start);
+		System.out.println("end : " + end);
+		if(end > cnt) end = cnt;
+		// 출력용 글번호
+		// 30 = 30 - (1 - 1) * 5
+		number = cnt - (currentPage - 1) * pageSize;	// 출력용 글번호
+		System.out.println("number : " + number);
+		System.out.println("pageSize : " + pageSize);	
+		if(cnt > 0) {
+			// 5-2. 게시글 목록 조회
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("start", start);
+			map.put("end", end);
+			ArrayList<onedayclassVO> dtos = boardDao.onedayclassGetArticleList(map);
+			req.setAttribute("dtos", dtos); // 큰바구니 : 게시글 목록  cf)작은 바구니: 게시글1건
+			System.out.println("dtos 나오냐?" + dtos+" / cnt :"+cnt);
+		}
+		// 6단계. request나 session에 처리 결과를 저장(jsp에 전달하기 위함)
+		// 시작페이지
+		// 1 = (1 /3) * 3 + 1;  int계산이므로 (1/3)이 0이 됨
+		startPage = (currentPage / pageBlock) * pageBlock + 1; 
+		if(currentPage % pageBlock == 0) startPage -= pageBlock;
+		System.out.println("startPage : " + startPage);		
+		// 마지막 페이지
+		// 3 = 1 + 3 -1;
+		endPage = startPage + pageBlock -1;
+		if(endPage > pageCount) endPage = pageCount;
+		System.out.println("endPage : " + endPage);
+		System.out.println("===================");
+		req.setAttribute("cnt", cnt); 	// 글갯수
+		req.setAttribute("number", number); 	// 출력용 글번호
+		req.setAttribute("pageNum", pageNum); 	// 페이지 번호
+		if(cnt > 0) {
+			req.setAttribute("startPage", startPage); 		//시작페이지
+			req.setAttribute("endPage", endPage); 			//마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); 		// 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); 		// 페이지 갯수
+			req.setAttribute("currentPage", currentPage); 	// 현재페이지
+		}
+	}
+	// 글 목록 상세페이지
+	@Override
+	public void onedayclassDetailForm(HttpServletRequest req, Model model) {
+		// 3단계. 화면으로 부터 입력받은 값을 받아온다.
+		int pageNum = Integer.parseInt(req.getParameter("pageNum"));
+		int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));
+		
+		boardDao.onedayclassAddReadCnt(onedayclassNumber);
+		onedayclassVO vo = boardDao.onedayclassGetArticle(onedayclassNumber);
+		Map<String, Object> endDate = boardDao.onedayclassEndCheck(onedayclassNumber);
+		System.out.println("잘담겼나?" + endDate.toString());
+		model.addAttribute("dto", vo);
+		model.addAttribute("pageNum", pageNum);
+		model.addAttribute("onedayclassNumber", onedayclassNumber);
+		model.addAttribute("endDate", endDate);
+	}
+	// 수정 상세 페이지
+	@Override
+	public void onedayclassModifyForm(HttpServletRequest req, Model model) {
+		int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));
+		boardDao.onedayclassAddReadCnt(onedayclassNumber);
+		onedayclassVO vo = boardDao.onedayclassGetArticle(onedayclassNumber);
+		model.addAttribute("dto", vo);
+		model.addAttribute("onedayclassNumber", onedayclassNumber);
+	}
+	// 수정 처리
+	@Override
+	public void onedayclassModifyPro(MultipartHttpServletRequest req, Model model) {
+
+		MultipartFile file = req.getFile("onedayclassImg1");
+		MultipartFile file3 = req.getFile("onedayclassImg3");
+		
+		String saveDir = req.getSession().getServletContext().getRealPath("/resources/img/board/onedayclass/");
+
+		//String realDir = chaeDir+"/board/onedayclass/";
+		String realDir = songDir+"/board/onedayclass/"; //시연용 서버 주소로
+		
+		try {
+			file.transferTo(new File(saveDir + file.getOriginalFilename()));
+			file3.transferTo(new File(saveDir + file3.getOriginalFilename()));
+			
+			FileInputStream fis = new FileInputStream(saveDir + file.getOriginalFilename());
+			FileOutputStream fos = new FileOutputStream(realDir + file.getOriginalFilename());
+			
+			FileInputStream fis3 = new FileInputStream(saveDir + file3.getOriginalFilename());
+	        FileOutputStream fos3 = new FileOutputStream(realDir + file3.getOriginalFilename());
+			
+			int data = 0;
+			
+			while((data = fis.read()) != -1) {
+				fos.write(data);
+			}
+			fis.close();
+			fos.close();
+			
+			while((data = fis3.read()) != -1) {
+	            fos3.write(data);
+	         }
+	         fis3.close();
+	         fos3.close();
+			
+			int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));
+			/*int pageNum = Integer.parseInt(req.getParameter("pageNum"));*/
+			onedayclassVO vo = new onedayclassVO();
+			
+			String onedayclassImg1 = file.getOriginalFilename();
+			vo.setOnedayclassImg1(onedayclassImg1);
+	        String onedayclassImg3 = file3.getOriginalFilename();
+	        vo.setOnedayclassImg3(onedayclassImg3);
+			
+			vo.setOnedayclassNumber(onedayclassNumber);
+			vo.setOnedayclassSubject(req.getParameter("onedayclassSubject"));
+			
+			java.util.Date d = null;
+			try {
+				d = new SimpleDateFormat("yyyy-MM-dd HH:mm").parse(req.getParameter("onedayclassOpendate").replace("T"," "));
+			} catch (ParseException e) {
+				e.printStackTrace();
+			}
+			Timestamp ts = new Timestamp(d.getTime());
+			vo.setOnedayclassOpendate(ts);
+			
+			vo.setOnedayclassLocation(req.getParameter("onedayclassLocation"));
+			vo.setOnedayclassRecruitment(Integer.parseInt(req.getParameter("onedayclassRecruitment")));
+			/*vo.setOnedayclassPrice(Integer.parseInt(req.getParameter("onedayclassPrice")));*/
+			vo.setOnedayclassCategory(req.getParameter("onedayclassCategory"));
+			vo.setOnedayclassContent(req.getParameter("onedayclassContent"));
+			vo.setOnedayclassDeadlineCheck(req.getParameter("onedayclassDeadlineCheck"));
+			/*System.out.println("vo나오나?" + vo.toString());*/
+			int updateCnt = boardDao.onedayclassModifyUpdate(vo);
+			model.addAttribute("updateCnt", updateCnt);
+			model.addAttribute("onedayclassNumber", onedayclassNumber);
+			/*model.addAttribute("pageNum", pageNum);*/
+		}	catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
+	// 글쓰기 페이지
+	@Override
+	public void onedayclassWriteForm(HttpServletRequest req, Model model) {
+		/*int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));*/
+		int pageNum = Integer.parseInt(req.getParameter("pageNum"));
+		/*model.addAttribute("onedayclassNumber", onedayclassNumber);*/
+		model.addAttribute("pageNum", pageNum);
+	}
+	// 글 처리 페이지
+	@Autowired
+	QRImage qrImage;
+	
+	@Override
+	public void onedayclassWritePro(MultipartHttpServletRequest req, Model model) throws Exception {
+
+
+	      MultipartFile file = req.getFile("onedayclassImg1");
+	      MultipartFile file2 = req.getFile("onedayclassImg2");
+	      MultipartFile file3 = req.getFile("onedayclassImg3");
+	      
+	      String saveDir = req.getSession().getServletContext().getRealPath("/resources/img/board/onedayclass/");
+	      //String realDir = chaeDir+"/board/onedayclass/";
+	      String realDir = songDir+"/board/onedayclass/"; //시연용 서버 주소로
+	      
+	      try {
+	         file.transferTo(new File(saveDir + file.getOriginalFilename()));
+	         file2.transferTo(new File(saveDir + file2.getOriginalFilename()));
+	         file3.transferTo(new File(saveDir + file3.getOriginalFilename()));
+	         
+	         FileInputStream fis = new FileInputStream(saveDir + file.getOriginalFilename());
+	         FileOutputStream fos = new FileOutputStream(realDir + file.getOriginalFilename());
+	         
+	         FileInputStream fis3 = new FileInputStream(saveDir + file3.getOriginalFilename());
+	         FileOutputStream fos3 = new FileOutputStream(realDir + file3.getOriginalFilename());
+	         
+	         FileInputStream fis2 = new FileInputStream(saveDir + file2.getOriginalFilename());
+	         //FileOutputStream fos2 = new FileOutputStream(realDir + file2.getOriginalFilename());
+	         
+	         int data = 0;
+	         
+	         while((data = fis.read()) != -1) {
+	            fos.write(data);
+	         }
+	         fis.close();
+	         fos.close();
+	         
+	         while((data = fis3.read()) != -1) {
+		            fos3.write(data);
+		         }
+	         fis3.close();
+	         fos3.close();
+	         
+	         System.out.println(saveDir + file2.getOriginalFilename());
+	         String qrName = file2.getOriginalFilename();
+	         String qrurl = qrImage.cropImage(saveDir + file2.getOriginalFilename(),qrName);
+	         System.out.println(qrurl);
+	         
+//	         while((data = fis2.read()) != -1) {
+//	            fos2.write(data);
+//	         }
+	         fis2.close();
+	         //fos2.close();
+	      
+	         onedayclassVO vo = new onedayclassVO();
+	         
+	         String onedayclassImg1 = file.getOriginalFilename();
+	         vo.setOnedayclassImg1(onedayclassImg1);
+	         String onedayclassImg3 = file3.getOriginalFilename();
+	         vo.setOnedayclassImg3(onedayclassImg3);
+	         String onedayclassImg2 = file2.getOriginalFilename();
+	         if (qrurl.equals("ERROR")) {
+	        	 vo.setOnedayclassImg2("ERROR.jpeg");
+	        	 vo.setOnedayclassPay("ERROR");
+	         } else {
+	        	 vo.setOnedayclassImg2("new" + onedayclassImg2);
+	        	 vo.setOnedayclassPay(qrurl);
+	         }
+	         vo.setMemberId(req.getParameter("memberId"));
+	         vo.setMemberNumber(Integer.parseInt(req.getParameter("memberNumber")));
+	         vo.setMemberEmail(req.getParameter("memberEmail"));
+	         vo.setOnedayclassSubject(req.getParameter("onedayclassSubject"));
+	         /*vo.setOnedayclassOpendate(Timestamp.valueOf(req.getParameter("onedayclassOpendate".replace('T',' '))));*/ //가령2019-04-26T01:01 에서 T빼고 빈공간 채워넣기
+	   
+	         java.util.Date d = null;
+	         try {
+	            d = new SimpleDateFormat("yyyy-MM-dd HH:mm").parse(req.getParameter("onedayclassOpendate").replace("T"," "));
+	         } catch (ParseException e) {
+	            e.printStackTrace();
+	         }
+	         Timestamp ts = new Timestamp(d.getTime());
+	         vo.setOnedayclassOpendate(ts);
+	         
+	         vo.setOnedayclassLocation(req.getParameter("onedayclassLocation"));
+	         vo.setOnedayclassRecruitment(Integer.parseInt(req.getParameter("onedayclassRecruitment")));
+	         vo.setOnedayclassPrice(Integer.parseInt(req.getParameter("onedayclassPrice")));
+	         vo.setOnedayclassCategory(req.getParameter("onedayclassCategory"));
+	         vo.setOnedayclassContent(req.getParameter("onedayclassContent"));
+	         
+	         
+	         int onedayclassInsertCnt = boardDao.onedayclassInsertBoard(vo);
+	         model.addAttribute("onedayclassInsertCnt", onedayclassInsertCnt);
+	         /*model.addAttribute("pageNum", pageNum);*/
+	      }   catch(IOException e) {
+	         e.printStackTrace();
+	      }
+	   }
+	
+	
+	// 글 삭제 처리
+	@Override
+	public void onedayclassDeletePro(HttpServletRequest req, Model model) {
+		int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));
+		int onedayclassDeleteCnt = boardDao.onedayclassDeleteBoard(onedayclassNumber);
+		model.addAttribute("onedayclassDeleteCnt", onedayclassDeleteCnt);
+	}
+	// 클래스개설 권한 신청 처리페이지
+	@Override
+	public void onedayclassAuthorityPro(HttpServletRequest req, Model model) {
+		String onedayclassAccountNumber = "empty";
+/*		Integer.parseInt(onedayclassAccountNumber);*/
+		UserVO uvo = (UserVO)req.getSession().getAttribute("userVO");
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("onedayclassAccountNumber", onedayclassAccountNumber);
+		map.put("memberEmail", uvo.getMemberEmail());
+		int updateCnt =  boardDao.onedayclassAccountUpdate(map);
+		model.addAttribute("updateCnt", updateCnt);
+	}
+	// 원데이 클래스 댓글 목록 출력
+	@Override
+	public List<oCommentVO> getoCommentList(HttpServletRequest req, Model model) {
+		int onedayclassNumber = Integer.parseInt(req.getParameter("onedayclassNumber"));
+		return boardDao.getoCommentList(onedayclassNumber, 1, 10);
+	}
+	// 원데이 클래스 댓글 추가
+	@Override
+	public void oCommentCreate(oCommentVO dto) {
+		boardDao.oCommentCreate(dto);
+	}
+	// 수정할 댓글 조회
+	@Override
+	public oCommentVO readOneComment(HttpServletRequest req) {
+		int oCommentNumber = Integer.parseInt(req.getParameter("oCommentNumber"));
+		oCommentVO vo = boardDao.readOneComment(oCommentNumber);
+		return vo;
+	}
+	// 댓글 수정
+	@Override
+	public int updateComment(oCommentVO vo) {
+		int updateCnt = boardDao.updateComment(vo);
+		return updateCnt;
+	}
+	
+	// 댓글 삭제
+	@Override
+	public Integer deleteComment(int oCommentNumber) {
+		return boardDao.deleteComment(oCommentNumber);
+		
+	}
+	
+	// 인원 수 변경(예약)
+	@Override
+	public int peopleUpdate(onedayclassVO vo) {
+		
+		return boardDao.peopleUpdate(vo);
+	}
+	
+	// 예약테이블 추가
+	@Override
+	public void reservationInsert(reservationVO dto) {
+		boardDao.reservationInsert(dto);
+	}
+	
+	// 예약 리스트 출력
+	@Override
+	public void reservationList(HttpServletRequest req, Model model) {
+		// 3단계. 화면으로 부터 입력받은 값을 받아온다.
+		int pageSize = 9;		// 한페이지당 출력할 글 갯수
+		int pageBlock = 3;		// 한블록당 페이지 갯수
+		int cnt = 0;			// 글 갯수
+		int start = 0;			// 현재 페이지 시작 글번호
+		int end = 0;			// 현재 페이지 마지막 글번호
+		int number = 0;			// 출력용 글번호
+		String pageNum = ""; 	// 페이지 번호
+		int currentPage = 0; 	// 현재페이지
+		int pageCount = 0;		// 페이지 갯수
+		int startPage = 0;		// 시작 페이지
+		int endPage = 0;		// 마지막 페이지
+		cnt = boardDao.reservationGetCnt();
+		System.out.println("cnt:" + cnt);
+		if(req.getParameter("pageNum") != null) {
+			pageNum = req.getParameter("pageNum").toString();
+		}else {
+			pageNum = "1"; // 첫페이지를 1페이지로 지정
+		}
+		// 글 48건 기준
+		currentPage = Integer.parseInt(pageNum); // 현재 페이지 : 1
+		System.out.println("currentPage : " + currentPage);
+		// 페이지 갯수
+		pageCount = (cnt / pageSize) + (cnt % pageSize > 0 ? 1 : 0);  // 페이지 갯수 + 나머지 있으면 1
+		// 현재 페이지 시작번호(페이지별)
+		// 1 = (1 - 1) * 5 + 1
+		start = (currentPage - 1) * pageSize + 1;
+		// 현재 페이지 마지막 글번호(페이지별)
+		// 5 = 1 + 5 -1;
+		end = start + pageSize - 1;
+		System.out.println("start : " + start);
+		System.out.println("end : " + end);
+		if(end > cnt) end = cnt;
+		// 출력용 글번호
+		// 30 = 30 - (1 - 1) * 5
+		number = cnt - (currentPage - 1) * pageSize;	// 출력용 글번호
+		System.out.println("number : " + number);
+		System.out.println("pageSize : " + pageSize);	
+		if(cnt > 0) {
+			// 5-2. 게시글 목록 조회
+			Map<String, Object> map = new HashMap<String, Object>();
+			map.put("start", start);
+			map.put("end", end);
+			UserVO uv = (UserVO)req.getSession().getAttribute("userVO");
+			map.put("memberId", uv.getMemberId());
+			
+			ArrayList<onedayclassVO> dtos = boardDao.reservationGetList(map);
+			ArrayList<reservationVO> dtos2 = boardDao.reservationGetList2(map);			
+			ArrayList<Map<String, Object>> dtos3 = boardDao.reservationGetList3(map);	
+			System.out.println("dtos3 나오나?" + dtos3.toString());
+			
+			req.setAttribute("dtos", dtos); // 큰바구니 : 게시글 목록  cf)작은 바구니: 게시글1건
+			req.setAttribute("dtos2", dtos2); // 큰바구니 : 게시글 목록  cf)작은 바구니: 게시글1건
+			req.setAttribute("dtos3", dtos3); // 큰바구니 : 게시글 목록  cf)작은 바구니: 게시글1건
+			
+			System.out.println("dtos 나오냐?" + dtos+" / cnt :"+cnt);
+		}
+		// 6단계. request나 session에 처리 결과를 저장(jsp에 전달하기 위함)
+		// 시작페이지
+		// 1 = (1 /3) * 3 + 1;  int계산이므로 (1/3)이 0이 됨
+		startPage = (currentPage / pageBlock) * pageBlock + 1; 
+		if(currentPage % pageBlock == 0) startPage -= pageBlock;
+		System.out.println("startPage : " + startPage);		
+		// 마지막 페이지
+		// 3 = 1 + 3 -1;
+		endPage = startPage + pageBlock -1;
+		if(endPage > pageCount) endPage = pageCount;
+		System.out.println("endPage : " + endPage);
+		System.out.println("===================");
+		req.setAttribute("cnt", cnt); 	// 글갯수
+		req.setAttribute("number", number); 	// 출력용 글번호
+		req.setAttribute("pageNum", pageNum); 	// 페이지 번호
+		if(cnt > 0) {
+			req.setAttribute("startPage", startPage); 		//시작페이지
+			req.setAttribute("endPage", endPage); 			//마지막 페이지
+			req.setAttribute("pageBlock", pageBlock); 		// 출력할 페이지 갯수
+			req.setAttribute("pageCount", pageCount); 		// 페이지 갯수
+			req.setAttribute("currentPage", currentPage); 	// 현재페이지
+		}
+		
+	}
+	
+	// ajax 검색
+/*	@Override
+	public void onedayclassCheck(List<String> valueArr) {
+		List<String> list = new ArrayList<String>();
+		
+		String a = list.get(0).toString();
+		System.out.println(a);
+		
+	}*/
+
+ 
+	
+	
+	/*
+	@Override
+	public void emergency(HttpServletRequest req, Model model) throws Exception {
+
+
+		List<HospitalVO> hlist = boardDao.emergency();
+
+		//int emergencyCnt = boardDao.emergencyCnt();
+
+		//model.addAttribute("emergencyCnt", emergencyCnt);
+		model.addAttribute("hlist", hlist);
+
+		/*ProcessBuilder pb = new ProcessBuilder("python", "E:/DEV-43/python/data/hosValue.py");
+		Process p = pb.start(); // 프로세스 호출
+
+		// 프로세스의 실행결과를 스트림으로 리턴함
+		BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+		String line ="";
+
+		// 방법2.
+		StringBuilder sb = new StringBuilder();
+		while((line = br.readLine()) != null) {
+			sb.append(line + "<br>"); //출력
+		}
+
+		String originData = sb.toString();
+
+		model.addAttribute("originData", originData);
+	}*/
+
+	@Override
+	public void emergency(HttpServletRequest req, Model model) throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
+}

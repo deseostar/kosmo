@@ -1,0 +1,44 @@
+.form-control, .custom-select{
+	border: 1px solid #70c745 !important;
+}
+
+.custom-control-input{
+	background-color: red !important;
+}
+
+hr{
+ 	border: solid 0.5px #70c745 !important;
+}
+
+.card{
+	border: 0.5px solid #70c745 !important;
+}
+.noborder{
+	border: 0px solid #70c745 !important;
+}
+
+.product_details_tab {
+	border-top: 1px solid #70c745 !important;
+	border-bottom: 1px solid #70c745 !important;
+}
+
+.comment_area {
+	border-top: 0px solid #70c745 !important;
+}
+
+.shop-sorting-data{
+	border-bottom: 1px solid #70c745 !important;
+}
+
+table{
+	color:black !important; 
+}
+
+.colored{
+	color:#70c745 !important;
+	font-weight: bold;
+}
+/* .shadow-sm {
+    box-shadow: 0 .125rem .25rem #70c745!important;
+}
+ */

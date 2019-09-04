@@ -1,0 +1,59 @@
+div#google_translate_element div.goog-te-gadget-simple {
+	border: none;
+	background-color: transparent;
+}
+
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value:hover
+	{
+	text-decoration: none;
+}
+
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span
+	{
+	color: #70c745;
+}
+
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span:hover
+	{
+	color: #70c745;
+}
+
+.goog-te-gadget-icon {
+	display: none !important;
+}
+
+#google_translate_element{
+	padding-top:3px;
+}
+
+#google_translate_element span{
+	vertical-align: middle !important;
+}
+
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span[style="color: rgb(213, 213, 213);"]
+	{
+	display: none !important;
+}
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span[style="color: rgb(118, 118, 118);"]
+	{
+	display: none !important;
+}
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span[style="color: rgb(155, 155, 155);"]
+	{
+	display: none !important;
+}
+
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span[style="border-left: 1px solid rgb(187, 187, 187);"]
+	{
+	display: none !important;
+}
+div#google_translate_element div.goog-te-gadget-simple a.goog-te-menu-value span[style="border-left-color: rgb(187, 187, 187); border-left-width: 1px; border-left-style: solid;"]
+	{
+	display: none !important;
+}
+.goog-te-banner-frame.skiptranslate {
+	display: none !important;
+}
+body {
+	top: 0px !important;
+}

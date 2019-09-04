@@ -1,0 +1,237 @@
+/* [Master Stylesheet] */
+/*
+Template Name: Alazea - Gardening &amp; Landscaping HTML Template
+Template Author: Colorlib
+Template Author URI: http://colorlib.com
+Text Domain: Alazea, Gardening & Landscaping
+Version: - v1.0
+*/
+/* :: 1.0 Import Fonts */
+@import url("https://fonts.googleapis.com/css?family=Dosis:200,300,400,500,600,700,800");
+/* :: 2.0 Import All CSS */
+@import url(./css/bootstrap.min.css);
+@import url(./css/classy-nav.css);
+@import url(./css/owl.carousel.min.css);
+@import url(./css/animate.css);
+@import url(./css/magnific-popup.css);
+@import url(./css/font-awesome.min.css);
+@import url(./css/elegant-icon.css);
+/* :: 3.0 Base CSS */
+
+
+body {
+  font-family: Geogia;
+  color: 392f31; 
+  background-color:#F0FFF0;
+  
+  }
+  
+  .myTable{
+		widht:100%;
+		font-size:18px;
+	}
+	.yourTable{
+		widht:100%;
+		font-size:18px;
+}
+@media screen and (max-width: 30em) {
+	.chattingAllView{
+		max-width:30%
+	} 
+	
+	.chattingAll:{ 
+		font-size:40%
+		}
+	.myTable{
+		widht:50%;
+		font-size:12px;
+	}
+	
+	
+	
+	.yourTable{
+		widht:50%;
+		font-size:12px;
+	}
+	
+	
+	
+	}
+
+/* :: 3.2.0 Height */
+
+
+/* :: 3.3.0 Section Padding */
+
+/* :: 3.5.0 Preloader */
+
+/* :: 3.6.0 Miscellaneous */
+
+
+/* :: 3.8.0 alazea Button */
+.alazea-btn {
+  -webkit-transition-duration: 400ms;
+  transition-duration: 400ms;
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  min-width: 150px;
+  height: 46px;
+  color: #ffffff;
+  background-color: #70c745;
+  border: 2px solid #70c745;
+  border-radius: 2px;
+  padding: 0 20px;
+  font-size: 16px;
+  line-height: 42px;
+  text-transform: uppercase;
+  font-weight: 600; }
+  .alazea-btn.active, .alazea-btn:hover, .alazea-btn:focus {
+    font-size: 16px;
+    color: #70c745;
+    font-weight: 600;
+    background-color: transparent;
+    box-shadow: none; }
+
+.alazea-progress-bar {
+  position: relative;
+  z-index: 1;
+  margin-top: 40px; }
+  .alazea-progress-bar .single_progress_bar {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 30px; }
+    .alazea-progress-bar .single_progress_bar:last-child {
+      margin-bottom: 0; }
+    .alazea-progress-bar .single_progress_bar p {
+      font-weight: 500;
+      line-height: 1;
+      font-size: 18px;
+      color: #303030;
+      margin-bottom: 10px; }
+
+.barfiller {
+  background-color: #ebebeb;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  height: 10px;
+  margin-bottom: 5px;
+  position: relative;
+  width: 100%; }
+  .barfiller .fill {
+    display: block;
+    position: relative;
+    width: 0px;
+    height: 100%;
+    background: #70c745;
+    z-index: 1; }
+  .barfiller .tipWrap {
+    display: none; }
+  .barfiller .tip {
+    margin-top: -35px;
+    padding: 2px 4px;
+    font-size: 18px;
+    color: #303030;
+    left: 0;
+    position: absolute;
+    z-index: 2;
+    background: transparent;
+    font-weight: 500; }
+    .barfiller .tip::after {
+      display: none; }
+
+.single-benefits-area {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 50px; }
+  .single-benefits-area img {
+    margin-bottom: 30px; }
+  .single-benefits-area p {
+    margin-bottom: 0; }
+
+/* :: 13.0 Service Area CSS */
+.alazea-video-area {
+  position: relative;
+  z-index: 1;
+  border-radius: 6px;
+  box-shadow: 0 1px 20px 0 rgba(0, 0, 0, 0.15); }
+  .alazea-video-area.bg-overlay:after {
+    border-radius: 6px; }
+  .alazea-video-area img {
+    position: relative;
+    z-index: -21;
+    border-radius: 6px; }
+  .alazea-video-area .video-icon {
+    -webkit-transition-duration: 500ms;
+    transition-duration: 500ms;
+    width: 70px;
+    height: 70px;
+    background-color: #70c745;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -35px;
+    margin-left: -35px;
+    z-index: 100;
+    border-radius: 50%;
+    line-height: 72px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0.9; }
+    .alazea-video-area .video-icon i {
+      color: #ffffff;
+      font-size: 24px; }
+    .alazea-video-area .video-icon:hover {
+      opacity: 1;
+      box-shadow: 0 5px 30px 0 rgba(0, 0, 0, 0.15); }
+
+/* :: 14.0 Team Member Area CSS */
+
+/* :: 15.0 Portfolio Area CSS */
+.alazea-portfolio-filter {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-bottom: 30px; }
+  .alazea-portfolio-filter .btn {
+    -webkit-transition-duration: 300ms;
+    transition-duration: 300ms;
+    padding: 0;
+    font-size: 20px;
+    color: #707070;
+    font-weight: 500;
+    background-color: transparent;
+    padding: 0 20px; }
+    @media only screen and (max-width: 767px) {
+      .alazea-portfolio-filter .btn {
+        font-size: 16px;
+        padding: 0 5px; } }
+    .alazea-portfolio-filter .btn:hover, .alazea-portfolio-filter .btn:focus {
+      color: #70c745;
+      box-shadow: none; }
+
+.alazea-portfolio.row {
+  margin-right: -10px;
+  margin-left: -10px; }
+.alazea-portfolio .col-12 {
+  padding-left: 10px;
+  padding-right: 10px; }
+
+.single_portfolio_item {
+  position: relative;
+  z-index: 10;
+  margin-top: 20px;
+  overflow: hidden;
+  height: 400px;
+  -webkit-transition-duration: 500ms;
+  transition-duration: 500ms; }
+
+/* :: 18.0 Breadcumb Area CSS */
+
+/*# sourceMappingURL=style.css.map */
+.btn-custom{
+	max-height:38px !important;
+	line-height:0 !important;
+}
+

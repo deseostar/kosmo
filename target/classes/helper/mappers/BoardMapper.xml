@@ -1,0 +1,745 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.spring.helper.dao.BoardDAO">
+
+
+	<!-- 지식인 게시판 갯수 구하기 -->
+	<sql id="knowledgeGetArticleCount">
+		select count(*) from knowledge 
+	</sql>
+	<select id="knowledgeGetArticleCnt" parameterType="java.util.Map" resultType="Integer">
+	<include refid="knowledgeGetArticleCount"/>
+		<where>
+			<if test="!knowledgeCategory.equals('No')"> <!--지역 -->
+				knowledgeCategory = #{knowledgeCategory}
+			</if>
+			<if test="!search.equals('No')"> <!-- 금액 범위  -->
+				AND knowledgeSubject LIKE '%'||#{search}||'%'
+				OR knowledgeContent LIKE '%'||#{search}||'%'
+			</if>
+			<if test="selectchk.equals('left')"> <!-- 금액 범위  -->
+				AND knowledgeReply = 'N'
+			</if>
+			<if test="selectchk.equals('right')"> <!-- 금액 범위  -->
+				AND knowledgeReply = 'Y'
+			</if>
+		</where>
+	</select>
+	<!-- 지식인 게시판 리스트 출력 -->
+	<sql id="getknowledgeGetArticleList">
+		SELECT * FROM (SELECT knowledgeNumber, memberNumber, boardCode, memberEmail, memberId, knowledgeSubject  
+			 		,knowledgeContent, knowledgeOpenCheck, knowledgeReward, knowledgeCategory, knowledgeLookup  
+			 		,knowledgeRegdate,knowledgeReply,knowledgeTemp1,knowledgeTemp2,knowledgeTemp3, rownum rNum
+			 		    
+			    FROM (
+	</sql>
+	<select id="knowledgeGetArticleList" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.KnowledgeVO">
+	<include refid="getknowledgeGetArticleList"/>
+	
+		select * from knowledge
+		<where>
+			boardCode = 10
+			<if test="!knowledgeCategory.equals('No')"> <!--지역 -->
+				AND knowledgeCategory = #{knowledgeCategory}
+			</if>
+			<if test="!search.equals('No')"> <!-- 금액 범위  -->
+				AND knowledgeSubject LIKE '%'||#{search}||'%'
+				OR knowledgeContent LIKE '%'||#{search}||'%'
+			</if>
+			<if test="selectchk.equals('left')"> <!-- 금액 범위  -->
+				AND knowledgeReply = 'N'
+			</if>
+			<if test="selectchk.equals('right')"> <!-- 금액 범위  -->
+				AND knowledgeReply = 'Y'
+			</if>
+		</where>
+		ORDER BY knowledgeRegdate DESC))
+		<where>
+			<![CDATA[
+				rNum >= #{start} and rNum <= #{end}
+			]]>  
+		</where>
+	</select>
+	<!-- 질문등록 처리 시작-->
+	<insert id="knowledgeInsertArticle"
+		parameterType="com.spring.helper.vo.BoardVO.KnowledgeVO">
+		INSERT INTO knowledge
+		VALUES(knowledgeseq.nextval,'10005','10',#{memberEmail},#{memberId},#{knowledgeSubject},#{knowledgeContent},#{knowledgeOpenCheck},#{knowledgeReward},#{knowledgeCategory},0,sysdate,'N','0','0',0)
+	</insert>
+	<!-- 질문자 포인트 차감-->
+	<update id="knowledgeSelectComent" parameterType="java.util.Map">
+		UPDATE users SET memberPoint=(memberPoint-#{knowledgeReward}) WHERE memberEmail=#{memberEmail}
+	</update>
+	<!-- 질문등록 처리 종료-->
+	<!-- 질문수정 폼 자료 -->
+	<select id="knowledgeModifyForm" resultType="com.spring.helper.vo.BoardVO.KnowledgeVO">
+		SELECT * FROM knowledge WHERE knowledgeNumber=#{knowledgeNumber}
+	</select>
+	<!-- 질문수정 처리 -->
+	<update id="knowledgeModifyPro" parameterType="com.spring.helper.vo.BoardVO.KnowledgeVO">
+		UPDATE knowledge SET knowledgeReward=#{knowledgeReward},knowledgeSubject=#{knowledgeSubject},knowledgeContent=#{knowledgeContent},knowledgeOpenCheck=#{knowledgeOpenCheck},knowledgeCategory=#{knowledgeCategory}   WHERE knowledgeNumber=#{knowledgeNumber}
+	</update>
+	<!-- 질문삭제 처리 시작-->
+	<delete id="knowledgeDeleteForm" parameterType="int">
+		DELETE FROM knowledge WHERE knowledgeNumber=#{knowledgeNumber}
+	</delete>
+	<!-- 질문삭제시 답변 전체 삭제 -->
+	<delete id="knowledgeDeleteForm2" parameterType="int">
+		DELETE FROM kComment WHERE knowledgeNumber=#{knowledgeNumber}
+	</delete>
+	<!-- 질문삭제 처리 종료 -->
+	
+	<!-- 지식인게시판 게시글 상세페이지 출력 -->
+	<select id="knowledgeGetArticle"
+		resultType="com.spring.helper.vo.BoardVO.KnowledgeVO">
+		SELECT * FROM knowledge WHERE knowledgeNumber=#{knowledgeNumber}
+	</select>
+	<!-- 답변등록 처리 -->
+	<insert id="knowledgeCommentPro" parameterType="java.util.Map">
+		INSERT INTO kComment
+		VALUES(knowledgeseq.currval,#{knowledgeNumber},'10',#{memberEmail},#{memberId},#{kCommentContent},'N',sysdate,#{kCommentTemp1},'N',0)
+	</insert>
+	<!-- 답변등록 처리시 알림 처리 -->
+	<insert id="knowledgeCommentPro2" parameterType="java.util.Map">
+		INSERT INTO commentAlarm
+		VALUES(commentAlarmSeq.nextval,#{memberNumber},'10',#{knowledgememberId},#{memberId},#{memberCountry},#{knowledgeNumber},knowledgeseq.nextval,'댓글이 작성되었습니다.',1,sysdate,'N','N',0)
+	</insert>
+	<!-- 답변등록 처리시 포인트 처리 -->
+	<update id="knowledgeCommentPro3" parameterType="java.util.Map">
+		UPDATE  users SET memberPoint = (memberPoint+10) WHERE memberEmail=#{memberEmail}
+	</update>
+	<!-- 답변수정 처리 -->
+	<update id="kCommentModifyUpdate" parameterType="java.util.Map">
+		UPDATE kComment SET kCommentContent=#{kCommentContent},kCommentTemp1=#{kCommentTemp1} WHERE kCommentNumber=#{kCommentNumber}
+	</update>
+	
+	<!-- 답변삭제 처리 -->
+	<delete id="kCommentdelete" parameterType="int">
+		DELETE FROM kComment WHERE kCommentNumber=#{kCommentNumber}
+	</delete>
+	<!-- 답변 갯수 구하기 -->
+	<select id="knowledgeCommentListCnt" resultType="int">
+		SELECT count(*) from kComment where knowledgeNumber = #{knowledgeNumber}
+	</select>
+	<!-- 답변 리스트 출력 -->
+	<select id="knowledgeCommentList" resultType="com.spring.helper.vo.BoardVO.kCommentVO">
+		SELECT * FROM kComment WHERE knowledgeNumber=#{knowledgeNumber} 
+	</select>
+	<!-- 채택처리 시작 -->
+	<!-- 답변자 포인트 추가 -->
+	<update id="knowledgeSelectComent2" parameterType="java.util.Map">
+		UPDATE users SET memberPoint=(memberPoint+#{knowledgeReward}) WHERE memberId=#{kCommentmemberId}
+	</update>
+	<!-- 글 채택완료 처리 -->
+	<update id="knowledgeSelectComent3" parameterType="java.util.Map">
+		UPDATE knowledge SET knowledgeReply='Y' WHERE knowledgeNumber=#{knowledgeNumber}
+	</update>
+	<!-- 채택처리 종료 -->
+	<!-- 조회수 증가 -->
+	<update id="knowledgeAddReadCnt" parameterType="int">
+		UPDATE knowledge SET knowledgeLookup=(knowledgeLookup+1) WHERE knowledgeNumber=#{knowledgeNumber}
+	</update>
+
+
+	<!-- 부동산 글 등록 -->
+	<insert id='realestateInsertArticle' parameterType="com.spring.helper.vo.BoardVO.RealestateVO">
+		insert into realestate(realestateNumber,memberNumber,boardCode,memberEmail,memberId,realestateSubject,
+		realestateContent,realestatePrice,realestateCategory1,realestateCategory2,realestateDeposit,realestateDepositCheck,
+		realestateManagement,realestateOptionCheck,realestateTobaccoCheck,realestateState,realestateHeatingtype,realestateBalcony,
+		realestatePetCheck,realestateTerm,realestateMoveindate,realestateGender,realestateRoom,realestateToilet,realestateCar,
+		realestateSize,realestateType,realestateLocation,realestateFavorite,realestateRecommend,realestateLookup,realestateRegdate,
+		realestateCheckday,realestateImg1,realestateImg2,realestateImg3,realestateTemp1,realestateTemp2) values
+		(realestateseq.nextVal,#{memberNumber},20,#{memberEmail},#{memberId},#{realestateSubject},
+		#{realestateContent},#{realestatePrice},#{realestateCategory1},'empty',#{realestateDeposit},#{realestateDepositCheck},
+		#{realestateManagement},#{realestateOptionCheck},#{realestateTobaccoCheck},#{realestateState},#{realestateHeatingtype},#{realestateBalcony},
+		#{realestatePetCheck},#{realestateTerm},#{realestateMoveindate},#{realestateGender},#{realestateRoom},#{realestateToilet},#{realestateCar},
+		#{realestateSize},#{realestateType},#{realestateLocation},'empty',0,0,sysdate,
+		'empty',#{realestateImg1},#{realestateImg2,jdbcType=VARCHAR},#{realestateImg3,jdbcType=VARCHAR},#{realestateTemp1},#{realestateTemp2,jdbcType=VARCHAR})
+	</insert>
+	
+	<sql id="realModifySql">
+		update realestate set 
+	</sql>
+	<update id='realestateModifyUpdate'  parameterType="com.spring.helper.vo.BoardVO.RealestateVO">
+	<include refid="realModifySql"/>
+		<if test="realestateSubject != null">
+			realestateSubject = #{realestateSubject},
+		</if>
+		<if test="realestatePrice != null">
+			realestatePrice = #{realestatePrice},
+		</if>
+		<if test="realestateManagement != null">
+			realestateManagement = #{realestateManagement},
+		</if>
+		<if test="realestateDeposit != null"> 
+			realestateDeposit = #{realestateDeposit},
+			<if test="realestateDeposit == 0"> 
+				realestateDepositCheck = 'off',
+			</if>
+			<if test="realestateDeposit != 0"> 
+				realestateDepositCheck = 'on',
+			</if>
+		</if>
+		<if test="realestateRoom != null">
+			realestateRoom = #{realestateRoom},
+		</if>
+		<if test="realestateToilet != null"> 
+			realestateToilet = #{realestateToilet},
+		</if>
+		<if test="realestateState != null">
+			realestateState = #{realestateState},
+		</if>
+		<if test="realestateCategory1 != null">
+			realestateCategory1 = #{realestateCategory1},
+		</if>
+		<if test="realestateType != null">
+			realestateType = #{realestateType},
+		</if>
+		<if test="realestateTerm != null">
+			realestateTerm = #{realestateTerm},
+		</if>
+		<if test="realestateMoveindate != null">
+			realestateMoveindate = #{realestateMoveindate},
+		</if>
+			<if test="realestateGender != null">
+			realestateGender = #{realestateGender},
+		</if>
+			<if test="realestateHeatingtype != null">
+			realestateHeatingtype = #{realestateHeatingtype},
+		</if>
+			<if test="realestateSize != null">
+			realestateSize = #{realestateSize},
+		</if>
+		<if test="realestateContent != null">
+			realestateContent = #{realestateContent},
+		</if>
+		<if test="realestateOptionCheck != null">
+			realestateOptionCheck = #{realestateOptionCheck},
+		</if>
+		<if test="realestateTobaccoCheck != null">
+			realestateTobaccoCheck = #{realestateTobaccoCheck},
+		</if>
+		<if test="realestatePetCheck != null">
+			realestatePetCheck = #{realestatePetCheck},
+		</if>
+		<if test="realestateBalcony != null">
+			realestateBalcony = #{realestateBalcony},
+		</if>
+		<if test="realestateCar != null">
+			realestateCar = #{realestateCar},
+		</if>
+		<if test="realestateTemp1 != null">
+			realestateTemp1 = #{realestateTemp1},
+		</if>
+		<if test="realestateLocation != null">
+			realestateLocation = #{realestateLocation},
+		</if>
+		<if test="realestateImg1 != null"> 
+			realestateImg1 = #{realestateImg1},
+		</if>
+		<if test="realestateImg2 != null"> 
+			realestateImg2 = #{realestateImg2},
+		</if>
+		<if test="realestateImg3 != null"> 
+			realestateImg3 = #{realestateImg3},
+		</if>
+		<if test="realestateTemp2 != null">
+			realestateTemp2 = #{realestateTemp2}
+		</if>
+		<where>
+			realestateNumber = #{realestateNumber}
+		</where>
+	</update>
+	
+	<!-- 부동산 게시판 글 삭제 -->
+	<delete id="realestateDeleteArticle" parameterType="Integer">
+		delete realestate where realestateNumber = #{realestateNumber} 
+	</delete>
+	<!-- 부동산 게시판 댓글 삭제 -->	
+	<delete id="realestateDeleteComments" parameterType="Integer">
+		delete rComment where realestateNumber = #{realestateNumber} 
+	</delete>
+	
+	<!-- 부동산 게시글 상세보기 -->
+	<select id="realestateGetArticle" parameterType="Integer" resultType="com.spring.helper.vo.BoardVO.RealestateVO">
+		select * from realestate where realestateNumber = #{realestateNumber} 
+	</select>
+	
+	<!-- 부동산 게시글 댓글 달기 -->
+	<insert id="realestateCommentPro" parameterType="com.spring.helper.vo.BoardVO.RealestateCommentsVO">
+		insert into rcomment(BOARDCODE,REALESTATENUMBER,RCOMMENTNUMBER,MEMBERID,MEMBEREMAIL,RCOMMENTCONTENT,RCOMMENTREGDATE) values(
+		21,#{realestateNumber},realestateseq.nextval,#{memberId},#{memberEmail},#{rCommentContent},sysdate)
+	</insert>
+	<!-- 답변등록 처리시 알림 처리 -->
+	<insert id="realestateCommentPro2" parameterType="com.spring.helper.vo.BoardVO.RealestateCommentsVO">
+		INSERT INTO commentAlarm
+		VALUES(commentAlarmSeq.nextval,#{memberNumber},'20',#{rCommentTemp1},#{memberId},#{memberCountry},#{realestateNumber},realestateseq.currval,'There is a comment on the article you posted',1,sysdate,'N','N',0)
+	</insert>
+	<!-- 부동산 게시글 댓글 삭제 -->
+	<delete id="realestateCommentsDelete">
+		delete rcomment where rCommentNumber = #{rCommentNumber}
+	</delete>
+	
+	<!-- 부동산 게시글 댓글 리스트 -->
+	<select id="realestateGetCommentsList" parameterType="Integer" resultType="com.spring.helper.vo.BoardVO.RealestateCommentsVO">
+		select * from rComment where realestateNumber = #{realestateNumber} order by RCOMMENTREGDATE
+	</select>
+	
+	<!-- 부동산 검색 조건에 따른 갯수 구하기 -->
+	<sql id="getRealCount">
+		select count(*) from realestate
+	</sql>
+	<select id="realestateGetArticleCnt" parameterType="com.spring.helper.vo.BoardVO.RealestateVO" resultType="Integer">
+	<include refid="getRealCount"/>
+		<where>
+			<if test="realestateCategory1 != null"> <!--지역 -->
+				realestateCategory1 in #{realestateCategory1}
+			</if>
+			<if test="realestatePrice != 0"> <!-- 금액 범위  -->
+			<![CDATA[
+				and realestatePrice >= #{realestatePrice}
+			]]>
+			</if>
+			<if test="realestatePriceEnd != 0"> <!-- 금액 끝 범위  -->
+			<![CDATA[
+				and realestatePrice <= #{realestatePriceEnd}
+			]]>
+			</if>
+			<if test="realestateDepositCheck != null"> <!-- 보증금 -->
+				and realestateDepositCheck in #{realestateDepositCheck}
+			</if>
+			<if test="realestateRoom != null"> <!-- 방갯수 -->
+				and realestateRoom in #{realestateRoom}
+			</if>
+			<if test="realestateToilet != null"> <!-- 화장실 갯수 -->
+				and realestateToilet in #{realestateToilet}
+			</if>
+			<if test="realestateType != null"> <!-- 방형태 -->
+				and realestateType in #{realestateType}
+			</if>
+			<if test="realestateTerm != null"> <!-- 계약기간 -->
+				and realestateTerm in #{realestateTerm}
+			</if>
+			<if test="realestateGender != null"> <!-- 성별 -->
+				and realestateGender in #{realestateGender}
+			</if>
+			<if test="realestateHeatingtype != null"> <!-- 난방타입 -->
+				and realestateHeatingtype in #{realestateHeatingtype}
+			</if>
+			<if test="realestateSize != null"> <!-- 방크기 -->
+				and realestateSize in #{realestateSize}
+			</if>
+			<if test="realestateOptionCheck != null"> <!-- 풀옵션 -->
+				and realestateOptionCheck in #{realestateOptionCheck}
+			</if>
+			<if test="realestateTobaccoCheck != null"> <!-- 담배 -->
+				and realestateTobaccoCheck in #{realestateTobaccoCheck}
+			</if>
+			<if test="realestatePetCheck != null"> <!-- 펫 -->
+				and realestatePetCheck in #{realestatePetCheck}
+			</if>
+			<if test="realestateBalcony != null"> <!-- 성별 -->
+				and realestateBalcony in #{realestateBalcony}
+			</if>
+			<if test="realestateCar != null"> <!-- 주차장 -->
+				and realestateCar in #{realestateCar}
+			</if>
+			<if test="realestateTemp1 != null"> <!-- 엘리베이터 -->
+				and realestateTemp1 in #{realestateTemp1}
+			</if>
+		</where>
+	</select>
+	
+	<!-- 부동산 검색조건에 따른 게시글 LIST 구하기 by start ~ end -->
+	<sql id="getRealestateList">
+		SELECT * FROM (SELECT realestateNumber,memberNumber,boardCode,memberEmail,memberId,realestateSubject,
+		    realestateContent,realestatePrice,realestateCategory1,realestateCategory2,realestateDeposit,realestateDepositCheck,
+		    realestateManagement,realestateOptionCheck,realestateTobaccoCheck,realestateState,realestateHeatingtype,realestateBalcony,
+		    realestatePetCheck,realestateTerm,realestateMoveindate,realestateGender,realestateRoom,realestateToilet,realestateCar,
+		    realestateSize,realestateType,realestateLocation,realestateFavorite,realestateRecommend,realestateLookup,realestateRegdate,
+		    realestateCheckday,realestateImg1,realestateImg2,realestateImg3,realestateTemp1, rownum rNum 
+		FROM (
+	</sql>
+	<select id="realestateGetArticleList" parameterType="com.spring.helper.vo.BoardVO.RealestateVO" resultType="com.spring.helper.vo.BoardVO.RealestateVO">
+	<include refid="getRealestateList"/>
+		select * from realestate
+		<where>
+			boardcode = 20
+			<if test="realestateCategory1 != null"> <!--지역 -->
+				and realestateCategory1 in #{realestateCategory1}
+			</if>
+			<if test="realestatePrice != 0"> <!-- 금액 범위  -->
+			<![CDATA[
+				and realestatePrice >= #{realestatePrice}
+			]]>
+			</if>
+			<if test="realestatePriceEnd != 0"> <!-- 금액 끝 범위  -->
+			<![CDATA[
+				and realestatePrice <= #{realestatePriceEnd}
+			]]>
+			</if>
+			<if test="realestateDepositCheck != null"> <!-- 보증금 -->
+				and realestateDepositCheck in #{realestateDepositCheck}
+			</if>
+			<if test="realestateRoom != null"> <!-- 방갯수 -->
+				and realestateRoom in #{realestateRoom}
+			</if>
+			<if test="realestateToilet != null"> <!-- 화장실 갯수 -->
+				and realestateToilet in #{realestateToilet}
+			</if>
+			<if test="realestateType != null"> <!-- 방형태 -->
+				and realestateType in #{realestateType}
+			</if>
+			<if test="realestateTerm != null"> <!-- 계약기간 -->
+				and realestateTerm in #{realestateTerm}
+			</if>
+			<if test="realestateGender != null"> <!-- 성별 -->
+				and realestateGender in #{realestateGender}
+			</if>
+			<if test="realestateSize != null"> <!-- 방크기 -->
+				and realestateSize in #{realestateSize}
+			</if>
+			<if test="realestateHeatingtype != null"> <!-- 난방타입 -->
+				and realestateHeatingtype in #{realestateHeatingtype}
+			</if>
+			<if test="realestateOptionCheck != null"> <!-- 풀옵션 -->
+				and realestateOptionCheck in #{realestateOptionCheck}
+			</if>
+			<if test="realestateTobaccoCheck != null"> <!-- 담배 -->
+				and realestateTobaccoCheck in #{realestateTobaccoCheck}
+			</if>
+			<if test="realestatePetCheck != null"> <!-- 펫 -->
+				and realestatePetCheck in #{realestatePetCheck}
+			</if>
+			<if test="realestateBalcony != null"> <!-- 성별 -->
+				and realestateBalcony in #{realestateBalcony}
+			</if>
+			<if test="realestateCar != null"> <!-- 주차장 -->
+				and realestateCar in #{realestateCar}
+			</if>
+			<if test="realestateTemp1 != null"> <!-- 엘리베이터 -->
+				and realestateTemp1 in #{realestateTemp1}
+			</if>
+				ORDER BY realestatenumber DESC))
+		</where>
+		<where>
+			<![CDATA[
+				rNum >= #{realestateStart} and rNum <= #{realestateEnd}
+			]]>  
+		</where>
+		order by rNum
+	</select>
+	
+	
+	<!-- 멧세지 알람과 댓글 알람의 총합(멧세지 알람 + 댓글 알람) -->
+	<select id="commentReadCnt" resultType="int" parameterType="String">
+		select count(*) cnt from  commentalarm where memberEmail = #{memEmail}
+	</select>		
+	
+	<select id="messageReadCnt" resultType="int" parameterType="String">
+		select count(*) cnt from  message where messageSendId = #{memberId}
+	</select>
+	
+	<!-- 알람 게시판으로 이동 했을때 alarm숫자 업데이트 -->
+	<update id="messageReadList2" parameterType="String">
+		UPDATE message SET messagealarm = 2 WHERE messagealarm = 1 AND messageSendId = #{memberId}
+	</update >
+	
+	<!-- 알람 게시판으로 이동 했을때 alarm숫자 업데이트 -->
+	<update id="commentReadList2" parameterType="String">
+		UPDATE commentalarm SET commentalarm = 2 WHERE commentalarm = 1 AND memberEmail = #{memEmail}
+	</update >
+	
+	<!-- 쪽지 알람의 리스트 -->
+	<select id="messageReadList" resultType="com.spring.helper.vo.BoardVO.MessageVO" parameterType="java.util.Map">
+		<![CDATA[
+			SELECT * FROM (SELECT messageNumber, memberEmail, messageFromId, messageSendId, messageContent, messageRegdate, messageAlarm, rownum rNum 
+			FROM ( SELECT * FROM message WHERE messagealarm != 0  AND messageSendId = #{userVO.memberId} ORDER BY messageregdate DESC ))
+			WHERE rNum >= #{start} AND rNum <= #{end}
+		]]>
+	</select>
+	
+	<!-- 댓글 알람의 리스트 -->
+	<select id="commentReadList" resultType="com.spring.helper.vo.BoardVO.CommentAlarmVO" parameterType="java.util.Map">
+		<![CDATA[
+				SELECT * FROM (SELECT commentnumber, membernumber, boardcode, memberemail, memberid, membercountry, commentoriginalnumber, commentcommentnumber, commentsubject, commentalarm, commentregdate, rownum rNum 
+				FROM ( SELECT * FROM commentalarm WHERE commentalarm!= 0 ORDER BY commentregdate DESC ))
+				WHERE rNum >= #{start} AND rNum <= #{end}
+		]]>
+	</select>
+	
+	<!-- 댓글 알람 삭제 -->
+	<delete id="commentDelete" parameterType="int">
+		 delete from commentalarm where commentnumber = #{commentnumber}
+	</delete>
+	
+	<!-- 받은 쪽지 삭제 -->
+	<delete id="messageDelete" parameterType="int">
+		 delete from message where messageNumber = #{messageNumber}
+	</delete>
+	
+	<!-- 보낸쪽지 삭제 -->
+	<delete id="fMessageDelete" parameterType="int">
+		delete from frommessage where fMessageNumber = #{fMessageNumber}
+	</delete>
+	
+	<!-- ajax 댓글 알람 갯수 -->
+	<select id="commentAlarmCnt" resultType="int" parameterType="String">
+		SELECT COUNT(*) cnt FROM  commentalarm WHERE memberEmail = #{memEmail} AND commentalarm = 1
+	</select>
+	<!-- ajax 쪽지 알람 갯수 -->
+	<select id="messageCnt" resultType="int" parameterType="String">
+		SELECT COUNT(*) cnt FROM  message WHERE messageSendId = #{memberId} AND messagealarm = 1
+	</select>
+	
+	<!-- 쪽지 보내기 아이디 체크 -->
+	<select id="idCheck" parameterType="String" resultType="int">
+		SELECT COUNT(*) FROM USERS WHERE memberid=#{messageSendId}
+	</select>
+	<!--  쪽지 보내기 받는사람 -->
+	<insert id="sendMessage" parameterType="java.util.Map">
+		INSERT INTO message VALUES
+		( #{userVO.memberEmail}, #{userVO.memberId}, #{messageSendId}, messageseq.nextval, #{messageContent}, sysdate, 1, 0, '0', '0' )	
+	</insert>
+	<!--  쪽지 보내기 보내는 사람 -->
+	<insert id="fromMessage" parameterType="java.util.Map">
+		INSERT INTO frommessage VALUES
+		( #{userVO.memberEmail}, #{userVO.memberId}, #{messageSendId}, fmessageseq.nextval, #{messageContent}, sysdate, 1, 0, '0', '0' )	
+	</insert>
+	
+	<!-- 보낸 쪽지 갯수 -->
+	<select id="messageSendListCnt" resultType="int" parameterType="String">
+		select count(*) cnt from frommessage WHERE fmessageFromId = #{memberId}
+	</select>
+	
+	<!-- 보낸 쪽지 리스트 -->
+	<select id="messageSendList" resultType="com.spring.helper.vo.BoardVO.FromMessageVO" parameterType="java.util.Map">
+		<![CDATA[
+			SELECT * FROM (SELECT fmessageNumber, fmemberEmail, fmessageFromId, fmessageSendId, fmessageContent, fmessageRegdate, fmessageAlarm, rownum rNum 
+			FROM ( SELECT * FROM frommessage WHERE fmessagealarm != 0  AND fmessageFromId = #{userVO.memberId} ORDER BY fmessageregdate DESC ))
+			WHERE rNum >= #{start} AND rNum <= #{end}
+		]]>
+	</select>
+	
+	<!-- 채팅 글 뿌리기-->
+	<select id="chatting" resultType="com.spring.helper.vo.BoardVO.ChattingVO" parameterType="String">
+		SELECT * FROM chatting WHERE chattingcontry=#{chattingContry} ORDER BY chattingRegdate ASC
+	</select>
+	
+	<!-- 채팅 글쓰기 -->
+	<insert id="chattingWrite" parameterType="com.spring.helper.vo.BoardVO.ChattingVO">
+		INSERT INTO chatting VALUES
+		( chattingseq.nextval, #{chattingMemberId}, #{chattingContent}, sysdate, #{chattingContry}, 0,'n','n' )	
+	</insert>
+	
+	<!-- 세계 채팅 글 뿌리기-->
+	<select id="chattingAll" resultType="com.spring.helper.vo.BoardVO.ChattingAllVO" parameterType="String">
+		 SELECT * FROM chattingall ORDER BY chattingallregdate ASC
+	</select>
+	
+	<!-- 세계 채팅 글쓰기 -->
+	<insert id="chattingWriteAll" parameterType="com.spring.helper.vo.BoardVO.ChattingAllVO">
+		INSERT INTO chattingall VALUES
+		( chattingallseq.nextval, #{chattingAllMemberId}, #{chattingAllContent}, sysdate, #{chattingAllContry}, 0,'n','n' )	
+	</insert>
+	
+	
+	<!-- 원데이 게시글 갯수 구하기 -->
+	<select id="onedayclassGetArticleCnt" resultType="int">
+		SELECT count(*) as cnt FROM onedayclass
+	</select>
+	
+	<!-- 원데이 게시글 목록 조회 -->
+	<select id="onedayclassGetArticleList" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.onedayclassVO">
+		<![CDATA[
+		SELECT * 
+		  FROM(SELECT onedayclassNumber, memberNumber, memberEmail, memberId, onedayclassSubject, onedayclassContent, onedayclassLookup,
+		  onedayclassRegdate, onedayclassAccountNumber, onedayclassCategory, onedayclassOpendate, onedayclassLocation, onedayclassRecruitment,
+		  onedayclassPrice, onedayclassEndCheck, onedayclassDeadlineCheck, onedayclassGrade, onedayclassTotalpeople,
+		  onedayclassImg1, onedayclassImg2, onedayclassImg3, rownum rNum  
+			     FROM ( 
+					   SELECT * FROM onedayclass  
+					   ORDER BY onedayclassNumber DESC 
+			           )
+			      )  
+		WHERE rNum >= #{start} AND rNum <= #{end}		
+		]]>
+	</select>
+	
+	<!-- 원데이 조회수 증가 -->
+	<update id="onedayclassAddReadCnt" parameterType="int" >
+		UPDATE onedayclass SET onedayclassLookup=(onedayclassLookup+1) WHERE onedayclassNumber=#{onedayclassNumber}
+	</update>
+	
+	<!-- 원데이 게시글 상세 페이지, 수정을 위한 상세페이지 -->
+	<select id="onedayclassGetArticle" resultType="com.spring.helper.vo.BoardVO.onedayclassVO">
+		SElECT * FROM onedayclass WHERE onedayclassNumber=#{onedayclassNumber}
+	</select>
+	
+	<!-- 종료 표시처리-->
+	<select id="onedayclassEndCheck" parameterType="int" resultType="java.util.Map">
+		SELECT extract( day from diff ) days,
+				extract( hour from diff ) hours,
+				extract( minute from diff ) minutes
+		from (select onedayclassOpendate - SYSTIMESTAMP diff 
+			  From onedayclass
+ 			  WHERE onedayclassnumber=#{onedayclassNumber})
+	</select>
+	
+	<!-- 원데이 수정 처리 -->
+	<update id="onedayclassModifyUpdate" parameterType="com.spring.helper.vo.BoardVO.onedayclassVO">
+		UPDATE onedayclass SET onedayclassSubject=#{onedayclassSubject}, onedayclassLocation=#{onedayclassLocation}, onedayclassOpendate=#{onedayclassOpendate}
+		, onedayclassRecruitment=#{onedayclassRecruitment}, onedayclassPrice=#{onedayclassPrice}
+		, onedayclassCategory=#{onedayclassCategory}, onedayclassContent=#{onedayclassContent}
+		, onedayclassDeadlineCheck=#{onedayclassDeadlineCheck}, onedayclassImg1=#{onedayclassImg1}, onedayclassImg3=#{onedayclassImg3} WHERE onedayclassNumber=#{onedayclassNumber}
+	</update>
+	
+	<!-- 원데이 글 작성 처리 -->
+	<insert id="onedayclassInsertBoard" parameterType="com.spring.helper.vo.BoardVO.onedayclassVO">
+		INSERT INTO onedayclass(onedayclassNumber, memberNumber, boardCode, memberEmail, memberId, onedayclassSubject, onedayclassContent
+		, onedayclassLookup, onedayclassRegdate, onedayclassAccountNumber, onedayclassCategory, onedayclassOpendate, onedayclassLocation
+		, onedayclassRecruitment, onedayclassPrice, onedayclassReservation, onedayclassPay, onedayclassDeadlineCheck
+		, onedayclassImg1, onedayclassImg2, onedayclassImg3)
+		VALUES(onedayclassSeq.nextval, #{memberNumber}, '30', #{memberEmail}, #{memberId}, #{onedayclassSubject}, #{onedayclassContent}
+		, 0, systimestamp, 'aa', #{onedayclassCategory}, #{onedayclassOpendate}, #{onedayclassLocation}
+		, #{onedayclassRecruitment}, #{onedayclassPrice}, 'aa', #{onedayclassPay}, 'open'
+		, #{onedayclassImg1}, #{onedayclassImg2}, #{onedayclassImg3})
+	</insert>
+	
+	<!-- 원데이 게시글 삭제  -->
+	<delete id="onedayclassDeleteBoard" parameterType="int">
+		DELETE onedayclass WHERE onedayclassNumber=#{onedayclassNumber}
+	</delete>
+	
+	
+	<!-- 원데이 게시판 댓글 리스트 -->
+	<select id="getoCommentList" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.oCommentVO">
+		SELECT oCommentNumber, onedayclassNumber, boardCode, memberEmail, memberId, oCommentContent, oCommentRegdate
+		FROM oComment
+		WHERE onedayclassNumber=#{onedayclassNumber}
+		order by oCommentNumber
+	</select>
+	
+	<!-- 원데이 게시판 댓글 추가 -->
+	<insert id="oCommentCreate">
+		insert into oComment (oCommentNumber, onedayclassNumber, boardCode, memberEmail, memberId, oCommentContent, oCommentRegdate)
+		values(oCommentSeq.nextval, #{onedayclassNumber}, '31', #{memberEmail}, #{memberId}, #{oCommentContent}, sysdate)
+	</insert>
+	
+	<!-- 원데이 게시판 댓글 하나 조회 -->
+	<select id="readOneComment" resultType="com.spring.helper.vo.BoardVO.oCommentVO">
+		SELECT oCommentNumber, onedayclassNumber, memberId, oCommentContent, oCommentRegdate
+		FROM oComment
+		WHERE oCommentNumber=#{oCommentNumber}
+	</select>
+	
+	<!-- 원데이 게시판 댓글 수정 -->
+	<update id="updateComment">
+		UPDATE oComment SET oCommentContent=#{oCommentContent}
+		WHERE oCommentNumber=#{oCommentNumber}
+	</update>
+	
+	<!-- 원데이 게시판 댓글 삭제 -->
+ 	<delete id="deleteComment" parameterType="int">
+		DELETE FROM oComment
+		WHERE oCommentNumber=#{oCommentNumber}
+	</delete>
+	
+	<!-- 인원 수 변경 -->
+	<update id="peopleUpdate">
+		<![CDATA[
+		UPDATE onedayclass SET onedayclassTotalpeople=#{onedayclassTotalpeople} + 1, onedayclassRecruitment=#{onedayclassRecruitment} - 1
+		WHERE onedayclassNumber=#{onedayclassNumber}
+		]]>
+	</update>
+	
+	<!-- 인원 수 가져오기 -->
+	<select id="getPeopleChange" resultType="java.util.Map" parameterType="int">
+		SELECT onedayclassRecruitment, onedayclassTotalpeople
+		FROM onedayclass
+		WHERE  onedayclassNumber=#{onedayclassNumber}
+	</select>
+	
+	<!-- 예약테이블 추가 -->
+	<insert id="reservationInsert">
+		insert into reservation (reservationNumber, boardCode, reservatedPersonNumber, reservationEmail, reservationId, memberId, onedayclassNumber)
+		values(reservationSeq.nextval, '32', #{reservatedPersonNumber}, #{reservationEmail}, #{reservationId}, #{memberId}, #{onedayclassNumber})
+	</insert>
+	
+	<!-- 예약 리스트 갯수 -->
+	<select id="reservationGetCnt" resultType="int">
+		SELECT count(*) as cnt FROM reservation
+	</select>
+	
+	<!-- 예약 리스트 출력1 -->
+	<select id="reservationGetList" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.onedayclassVO">
+		<![CDATA[
+		SELECT * 
+		  FROM(SELECT onedayclassSubject, onedayclassCategory, onedayclassOpendate, onedayclassLocation, onedayclassPrice, onedayclassEndCheck, onedayclassDeadlineCheck,
+		  onedayclassTotalpeople, memberId, onedayclassNumber, rownum rNum  
+			     FROM ( 
+					   SELECT * FROM onedayclass  
+					   ORDER BY onedayclassNumber DESC 
+			           )
+			      )  
+		WHERE rNum >= #{start} AND rNum <= #{end}		
+		]]>
+	</select>
+	
+	<!-- 예약 리스트 출력2 -->
+	<select id="reservationGetList2" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.reservationVO">
+		<![CDATA[
+		SELECT * 
+		  FROM(SELECT reservatedPersonNumber, reservationEmail, reservationId, memberId, onedayclassNumber, rownum rNum  
+			     FROM ( 
+					   SELECT * FROM reservation  
+					   ORDER BY reservationNumber DESC 
+			           )
+			      )  
+		WHERE rNum >= #{start} AND rNum <= #{end}		
+		]]>
+	</select>
+	
+	<select id="reservationGetList3" parameterType="java.util.Map" resultType="java.util.Map">
+		<![CDATA[
+		SELECT o.onedayclassSubject, o.onedayclassCategory, o.onedayclassOpendate, o.onedayclassLocation, o.onedayclassPrice, o.onedayclassEndCheck, o.onedayclassDeadlineCheck,
+		o.onedayclassTotalpeople, o.onedayclassNumber, NVL(r.reservatedPersonNumber, '') RESERVATEDPERSONNUMBER, NVL(r.reservationEmail, '') RESERVATIONEMAIL, NVL(r.reservationId, '') RESERVATIONID
+		FROM onedayclass o, reservation r
+		WHERE o.onedayclassNumber = r.onedayclassNumber(+)
+		and o.memberId = #{memberId}
+		]]>
+	</select>
+	
+
+	<update id="onedayclassAccountUpdate" parameterType="java.util.Map">
+		UPDATE users
+		   SET accountNumber = #{onedayclassAccountNumber},
+		       memberTemp1 = 1 <!-- 0: 미신청 / 1: 신청 / 2: 승인 -->
+		 WHERE memberEmail = #{memberEmail}
+	</update>
+
+	
+	
+	
+		
+	
+	<!-- emergency -->
+	<select id="emergency" resultType="java.util.Map">
+		<![CDATA[
+		SELECT hosNum, hosPhone, hosAddress, hosName, hosLocx, hosLocy, hosKind, hosDetail, rownum
+		  FROM hospitals
+		  where hosnum < 120
+		 ORDER BY rownum ASC
+		 ]]>  
+	</select>
+	
+	<select id="emergencyCnt" resultType="int">
+		SELECT COUNT(*)
+		  FROM hospitals
+	</select>
+	
+</mapper>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="com.spring.helper.dao.MemberDAO">
+
+	<select id="memberConfirmidForm" resultType="int" parameterType="String">
+		SELECT COUNT(*)
+		  FROM USERS
+		 WHERE MEMBEREMAIL = #{email}
+	</select>
+	
+	<select id="memberIdConfirm" resultType="int" parameterType="String">
+		SELECT COUNT(*)
+		  FROM users
+		 WHERE memberId = #{memberId}
+	</select>
+	
+	<insert id="memberInputPro" parameterType="java.util.Map">
+		INSERT INTO USERS (MEMBERNUMBER, MEMBEREMAIL, MEMBERID, 
+						PASSWORD, MEMBERCOUNTRY, MEMBERREGDATE, 
+						MEMBERPOINT, MEMBERRECOMMEND, AUTHORITY, 
+						ENABLED, EmailConfirm, EmailKey)
+		VALUES (USERSSEQ.nextVal, #{memberEmail}, #{memberId}, #{password}, 
+				#{memberCountry}, sysdate, 500, 0, 'ROLE_GUEST', 
+				1, 0, #{emailKey})
+	</insert>
+	
+	<update id="memberEmailConfirmed" parameterType="String">
+		UPDATE users
+		   SET emailConfirm = 1, authority = 'ROLE_USER'
+		 WHERE emailKey = #{emailKey}
+	</update>
+	
+	<update id="memberModifyPro" parameterType="java.util.Map">
+		UPDATE users
+		   SET password = #{password},
+		       memberCountry = #{memberCountry}
+		 WHERE memberEmail = #{memberEmail}
+	</update>
+	
+	<select id="memberDeleteForm" parameterType="java.util.Map" resultType="int">
+		SELECT COUNT(*)
+		  FROM users
+		 WHERE memberEmail = #{memberEmail}
+		   AND password = #{password}
+	</select>
+	
+	<update id="memberDeletePro" parameterType="java.util.Map">
+		UPDATE users
+		   SET enabled = 0, AUTHORITY = 'ROLE_GUEST'
+		 WHERE memberEmail = #{memberEmail}
+	</update>
+	
+	<select id="hostMemberList" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.UserVO">
+	<![CDATA[
+		SELECT *
+		  FROM (SELECT memberEmail, memberId, memberCountry, memberRegdate, memberPoint, memberNumber, authority, ENABLED, rownum rNum
+		          FROM (SELECT *
+		                 FROM users
+		                WHERE enabled = '1'
+		                ORDER BY memberregdate desc
+		                 ))
+		 WHERE rNum >= #{start}
+		   AND rNum <= #{end}
+		 ORDER BY memberNumber desc
+	]]>  
+	</select>
+	
+	<select id="getCnt" resultType="int">
+		SELECT COUNT(*)
+		  FROM users
+		 WHERE enabled = '1'
+	</select>
+	
+	<select id="getApplyCnt" resultType="int">
+		SELECT COUNT(*)
+		  FROM users
+		 WHERE MEMBERTEMP1 IN ('1', '2')
+		   AND enabled = '1'
+	</select>
+	
+	<select id="addAuthority" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.UserVO">
+	<![CDATA[
+		SELECT *
+		  FROM (SELECT memberEmail, memberId, accountNumber, memberTemp1, rownum rNum
+		          FROM (SELECT *
+		                 FROM users
+		                 WHERE MEMBERTEMP1 IN ('1', '2')
+		                 ORDER BY memberNumber DESC
+		                 ))
+		 WHERE rNum >= #{start} and rNum <= #{end}
+	]]>  
+	</select>
+	
+	<update id="applyAuthority" parameterType="String">
+		UPDATE users
+		   SET membertemp1 = '2'
+		 WHERE memberEmail = #{memberEmail}
+	</update>
+	
+	<select id="getId" parameterType="String" resultType="String">
+		select memberid from users where memberemail = #{memberEmail}
+	</select>
+	
+	<!-- 신청 완료 되면 쪽지 보내주기 -->
+	<insert id="applyMsgSend" parameterType="java.util.Map">
+		INSERT INTO message VALUES
+		( #{memberEmail}, 'welkome', #{memberId}, messageseq.nextval, 'Your permission request approved.', sysdate, 1, 0, '0', '0' )	
+	</insert>
+	
+	<select id="getSearchCnt" parameterType="String" resultType="int">
+		SELECT COUNT(*)
+		  FROM users
+		 WHERE memberEmail LIKE '%'||#{text}||'%'
+		    OR memberId LIKE '%'||#{text}||'%'
+		 ORDER BY memberNumber DESC
+	</select>
+	
+	<select id="memberSearch" parameterType="java.util.Map" resultType="com.spring.helper.vo.BoardVO.UserVO">
+	<![CDATA[
+		SELECT *
+		  FROM (SELECT memberEmail, memberId, memberCountry, memberRegdate, memberPoint, authority, rownum rNum
+		          FROM (SELECT *
+		                 FROM users
+		                 WHERE memberEmail LIKE '%'||#{text}||'%'
+		  				    OR memberId LIKE '%'||#{text}||'%'
+		  				    ORDER BY memberregdate desc
+		                 ))
+		 WHERE rNum >= #{start} and rNum <= #{end}
+		 ORDER BY memberregdate desc
+	]]> 
+	</select>
+	
+	<update id="disqualifyConfirm" parameterType="String">
+		UPDATE users
+		   SET enabled = 0, AUTHORITY = 'ROLE_GUEST'
+		 WHERE memberEmail = #{memberEmail}
+	</update>
+
+
+</mapper>
