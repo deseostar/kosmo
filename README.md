@@ -1,5 +1,5 @@
 # kosmo
-Used Java, Spring, JSP, javascript, OracleSQL and bootstrap programming language. My portfolio as a Back End Developer.
+Used Java, Spring, JSP, javascript, OracleSQL, bootstrap and etc programming language. My portfolio as a Back End Developer.
 
 
 context.xml
